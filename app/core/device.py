@@ -84,3 +84,16 @@ def detect_device() -> DeviceInfo:
 def format_gpu_header(info: DeviceInfo) -> str:
     """Single-line GPU summary for the UI header."""
     return f"検出GPU: **{info.display_label}** ／ 起動モード: {info.mode_label}"
+
+
+def vram_warning_for_model(info: DeviceInfo, vram_min_gb: int) -> str | None:
+    """Return a user-facing warning when GPU VRAM may be insufficient."""
+    if info.vram_gb is None:
+        return None
+    if info.vram_gb < vram_min_gb:
+        return (
+            f"⚠️ このモデルは VRAM が不足する可能性があります"
+            f"（必要: {vram_min_gb}GB 以上 / 検出: {info.vram_gb}GB）。"
+            f"標準 (2B) か XL Turbo をお試しください。"
+        )
+    return None

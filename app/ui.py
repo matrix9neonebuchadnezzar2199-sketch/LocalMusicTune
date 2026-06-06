@@ -9,10 +9,10 @@ import gradio as gr
 
 from app.config import DEFAULT_HOST, DEFAULT_PORT
 from app.core.audio import generate_dummy_audio
-from app.core.device import DeviceInfo, detect_device
+from app.core.device import DeviceInfo, detect_device, vram_warning_for_model
 from app.core.prompt_builder import build_generation_params, format_params_preview
 from app.models.manager import DownloadState, get_manager
-from app.models.registry import get_model, list_models
+from app.models.registry import default_model_key, get_model, list_models
 from app.presets.presets import PRESET_BY_LABEL, PRESET_LABELS
 
 # Dark theme CSS aligned with assets/mockup.html
@@ -162,6 +162,14 @@ def _start_download(model_key: str):
     return _refresh_model_panel()
 
 
+def _vram_warning_text(model_key: str, device_info: DeviceInfo) -> str:
+    if not model_key:
+        return ""
+    spec = get_model(model_key)
+    warning = vram_warning_for_model(device_info, spec.vram_min_gb)
+    return warning or ""
+
+
 def _update_preview(
     prompt: str,
     preset: str,
@@ -243,7 +251,13 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                     dl_target = gr.Dropdown(
                         label="ダウンロードするモデル",
                         choices=[(m.display_name, m.key) for m in list_models(include_optional=True)],
-                        value="ace-1.5-standard",
+                        value=default_model_key(),
+                    )
+                    vram_warning = gr.Textbox(
+                        label="VRAM 警告",
+                        interactive=False,
+                        visible=bool(_vram_warning_text(default_model_key(), device_info)),
+                        value=_vram_warning_text(default_model_key(), device_info),
                     )
                     dl_btn = gr.Button("⬇ 選択モデルをダウンロード", variant="secondary")
                     dl_progress_label = gr.Textbox(
@@ -321,6 +335,15 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                     gr.Markdown("#### 生成の進捗")
                     progress_text = gr.Textbox(value="待機中", label="進捗", interactive=False)
                     audio_out = gr.Audio(label="生成された曲", type="filepath")
+
+        dl_target.change(
+            lambda key: gr.update(
+                value=_vram_warning_text(key, device_info),
+                visible=bool(_vram_warning_text(key, device_info)),
+            ),
+            inputs=dl_target,
+            outputs=vram_warning,
+        )
 
         model_panel_outputs = [model_dd, model_mgmt_html, dl_progress_label, dl_progress_bar]
 

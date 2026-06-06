@@ -10,7 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 - ACE-Step 1.5 inference backend (real music generation)
 - One-click launch scripts for ROCm / CUDA on Windows and Linux
-- VRAM warnings when selecting models too large for detected GPU
+
+## [0.3.1] - 2026-06-07
+
+### Changed
+- Default model is now **XL (4B base)** for 20 GB VRAM environments (RX 7900 XT)
+- Standard (2B) remains as lightweight / fast-trial option
+- UI shows VRAM warning when selected model exceeds detected GPU memory
+
+### Added
+- `vram_warning_for_model()` in device module
+- PLAN.md §7: finalized model policy and terminology (standard=2B, XL=4B)
 
 ## [0.3.0] - 2026-06-07
 
@@ -32,5 +42,6 @@ First public pre-release. UI, prompt pipeline, and model download are functional
 - Generate button returns placeholder audio until v0.4.0 inference backend
 - Default `uv sync` installs CPU PyTorch; install GPU build separately for ROCm/CUDA
 
-[Unreleased]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/releases/tag/v0.3.0

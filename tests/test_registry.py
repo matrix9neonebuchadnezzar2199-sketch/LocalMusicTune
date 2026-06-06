@@ -13,9 +13,10 @@ def test_models_contain_standard_and_xl():
     assert "ace-1.5-xl-base" in keys
 
 
-def test_standard_is_default():
-    assert default_model_key() == "ace-1.5-standard"
+def test_xl_base_is_default():
+    assert default_model_key() == "ace-1.5-xl-base"
     assert get_model(default_model_key()).default is True
+    assert not get_model("ace-1.5-standard").default
 
 
 def test_standard_repo_id():

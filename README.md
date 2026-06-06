@@ -35,10 +35,10 @@
 | モデル | 重み | 最低 VRAM | 推奨 VRAM |
 |--------|------|-----------|-----------|
 | 標準 (2B) | 約 4.7 GB | 4 GB | 8 GB |
-| XL (4B) | 約 9 GB | 12 GB（オフロード時） | 20 GB |
+| XL (4B) | 約 9 GB | 12 GB（オフロード時） | **20 GB**（オフロードなし推奨） |
 | XL Turbo | 約 9 GB | 12 GB | 16 GB |
 
-VRAM が厳しい Radeon 環境では **標準 (2B)** または **XL Turbo** から始めることを推奨します。詳細は [ACE-Step GPU 互換性ドキュメント](https://github.com/ace-step/ACE-Step-1.5/blob/main/docs/en/GPU_COMPATIBILITY.md) を参照してください。
+**既定モデルは XL (4B base)** です（開発環境: AMD Radeon RX 7900 XT / 20 GB を想定）。VRAM が厳しい環境では **標準 (2B)** または **XL Turbo** を選んでください。UI は GPU VRAM とモデル要件を比較し、不足時に警告を表示します。
 
 ---
 
@@ -91,9 +91,11 @@ uv run localmusictune
 ### モデルのダウンロード
 
 1. 左サイドバー **「モデルの管理」** を開く
-2. **「ダウンロードするモデル」** で `ACE-Step 1.5 標準 (2B)` を選択（初回はこれを推奨）
+2. **「ダウンロードするモデル」** で `ACE-Step 1.5 XL (4B / 高品質)` を選択（**既定** — 20 GB VRAM 向け）
 3. **「⬇ 選択モデルをダウンロード」** をクリック
 4. 進捗バーが 100% になると **「使用するモデル」** ドロップダウンに `✓保管済み` と表示されます
+
+> 手軽に試す・DL を短時間で済ませたい場合は **標準 (2B)**（約 4.7 GB）も選べます。
 
 初回 DL にはネットワーク速度に応じて **数十分〜1 時間程度** かかる場合があります。
 
@@ -135,8 +137,8 @@ uv run localmusictune
 
 | 名称 | Hugging Face | 用途 |
 |------|--------------|------|
-| ACE-Step 1.5 標準 (2B) | [`ACE-Step/acestep-v15-base`](https://huggingface.co/ACE-Step/acestep-v15-base) | 軽量・初回推奨 |
-| ACE-Step 1.5 XL (4B) | [`ACE-Step/acestep-v15-xl-base`](https://huggingface.co/ACE-Step/acestep-v15-xl-base) | 高品質 |
+| ACE-Step 1.5 XL (4B) | [`ACE-Step/acestep-v15-xl-base`](https://huggingface.co/ACE-Step/acestep-v15-xl-base) | **既定・高品質**（20 GB VRAM 推奨） |
+| ACE-Step 1.5 標準 (2B) | [`ACE-Step/acestep-v15-base`](https://huggingface.co/ACE-Step/acestep-v15-base) | 軽量・高速試行用 |
 | ACE-Step 1.5 XL Turbo | [`ACE-Step/acestep-v15-xl-turbo`](https://huggingface.co/ACE-Step/acestep-v15-xl-turbo) | XL 高速版（任意） |
 
 ---
