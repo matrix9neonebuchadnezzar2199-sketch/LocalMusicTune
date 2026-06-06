@@ -1,4 +1,4 @@
-"""Gradio UI — mockup layout with dummy generation (PHASE 1)."""
+"""Gradio UI — mockup layout with prompt preview and dummy generation."""
 
 from __future__ import annotations
 
@@ -10,6 +10,8 @@ import gradio as gr
 from app.config import DEFAULT_HOST, DEFAULT_PORT
 from app.core.audio import generate_dummy_audio
 from app.core.device import DeviceInfo, detect_device
+from app.core.prompt_builder import build_generation_params, format_params_preview
+from app.presets.presets import PRESET_BY_LABEL, PRESET_LABELS
 
 # Dark theme CSS aligned with assets/mockup.html
 CUSTOM_CSS = """
@@ -81,20 +83,45 @@ INSTRUMENTS = [
     "パッド",
 ]
 
-PRESET_LABELS = [
-    "😴 睡眠",
-    "🌿 チル",
-    "📚 集中・作業",
-    "☕ カフェ",
-    "🏃 ワークアウト",
-    "🎮 ゲーム",
-    "🎬 シネマティック",
-]
+PRESET_LABELS_LIST = list(PRESET_LABELS)
+DEFAULT_PRESET = PRESET_LABELS_LIST[0]
+DEFAULT_PRESET_OBJ = PRESET_BY_LABEL[DEFAULT_PRESET]
 
 DUMMY_MODELS = [
     ("ACE-Step 1.5 標準 (2B)", "未DL（PHASE 3で接続）"),
     ("ACE-Step 1.5 XL (4B)", "未DL（PHASE 3で接続）"),
 ]
+
+
+def _update_preview(
+    prompt: str,
+    preset: str,
+    instruments: list[str],
+    bpm: float,
+    duration: float,
+    steps: float,
+) -> str:
+    params = build_generation_params(prompt, preset, instruments, bpm, duration, steps)
+    return format_params_preview(params)
+
+
+def _apply_preset_defaults(preset: str) -> tuple[list[str], float, float, float, str]:
+    p = PRESET_BY_LABEL[preset]
+    params = build_generation_params(
+        "",
+        preset,
+        list(p.default_instruments),
+        p.default_bpm,
+        p.default_duration_sec,
+        p.default_steps,
+    )
+    return (
+        list(p.default_instruments),
+        float(p.default_bpm),
+        float(p.default_duration_sec),
+        float(p.default_steps),
+        format_params_preview(params),
+    )
 
 
 def _dummy_generate(
@@ -107,19 +134,15 @@ def _dummy_generate(
     progress: gr.Progress = gr.Progress(),
 ) -> tuple[str, str | None]:
     """Simulate generation with progress bar; returns audio path."""
-    total_steps = int(steps)
+    params = build_generation_params(prompt, preset, instruments, bpm, duration, steps)
+    total_steps = params.steps
     for i in range(total_steps):
         time.sleep(0.02)
         pct = int((i + 1) / total_steps * 100)
         progress(i / total_steps, desc=f"生成中… {pct}%（ステップ {i + 1} / {total_steps}）")
 
-    out = generate_dummy_audio(duration_sec=min(duration, 10.0), silent=False)
-    status = (
-        f"ダミー生成完了（PHASE 1）— BPM:{int(bpm)} / 長さ:{int(duration)}秒 / "
-        f"ステップ:{total_steps} / プリセット:{preset} / 楽器:{', '.join(instruments) or 'なし'}"
-    )
-    if prompt.strip():
-        status += f" / プロンプト:{prompt[:60]}{'…' if len(prompt) > 60 else ''}"
+    out = generate_dummy_audio(duration_sec=min(params.duration_sec, 10.0), silent=False)
+    status = f"ダミー生成完了 — {params.preset_id} / {params.bpm}BPM / {params.duration_sec}秒"
     return status, str(out)
 
 
@@ -129,7 +152,7 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
             f"""
             <div class="lmt-header">
               <h1>🎵 ローカル音楽生成ツール</h1>
-              <span class="lmt-badge">PHASE 1</span>
+              <span class="lmt-badge">PHASE 2</span>
               <div class="lmt-gpu-info">
                 検出GPU: <b style="color:#6ee7a0;">{device_info.display_label}</b>
                 ／ 起動モード: {device_info.mode_label}
@@ -168,26 +191,47 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                 with gr.Group():
                     gr.Markdown("#### プリセット")
                     preset = gr.Radio(
-                        choices=PRESET_LABELS,
-                        value=PRESET_LABELS[0],
+                        choices=PRESET_LABELS_LIST,
+                        value=DEFAULT_PRESET,
                         label="",
                         show_label=False,
+                    )
+
+                with gr.Group():
+                    gr.Markdown("#### 合成プロンプト（プレビュー）")
+                    prompt_preview = gr.Textbox(
+                        label="",
+                        show_label=False,
+                        lines=6,
+                        interactive=False,
+                        value=_update_preview(
+                            "",
+                            DEFAULT_PRESET,
+                            list(DEFAULT_PRESET_OBJ.default_instruments),
+                            DEFAULT_PRESET_OBJ.default_bpm,
+                            DEFAULT_PRESET_OBJ.default_duration_sec,
+                            DEFAULT_PRESET_OBJ.default_steps,
+                        ),
                     )
 
                 with gr.Group():
                     gr.Markdown("#### 楽器")
                     instruments = gr.CheckboxGroup(
                         choices=INSTRUMENTS,
-                        value=["ピアノ", "ギター"],
+                        value=list(DEFAULT_PRESET_OBJ.default_instruments),
                         label="",
                         show_label=False,
                     )
 
                 with gr.Group():
                     gr.Markdown("#### 詳細設定")
-                    bpm = gr.Slider(40, 200, value=90, step=1, label="テンポ (BPM)")
-                    duration = gr.Slider(10, 300, value=120, step=1, label="曲の長さ（秒）")
-                    steps = gr.Slider(10, 120, value=60, step=1, label="生成ステップ数（品質）")
+                    bpm = gr.Slider(40, 200, value=DEFAULT_PRESET_OBJ.default_bpm, step=1, label="テンポ (BPM)")
+                    duration = gr.Slider(
+                        10, 300, value=DEFAULT_PRESET_OBJ.default_duration_sec, step=1, label="曲の長さ（秒）"
+                    )
+                    steps = gr.Slider(
+                        10, 120, value=DEFAULT_PRESET_OBJ.default_steps, step=1, label="生成ステップ数（品質）"
+                    )
 
                 gen_btn = gr.Button("🎶 音楽を生成（ダミー）", variant="primary")
 
@@ -195,6 +239,16 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                     gr.Markdown("#### 生成の進捗")
                     progress_text = gr.Textbox(value="待機中", label="進捗", interactive=False)
                     audio_out = gr.Audio(label="生成された曲", type="filepath")
+
+        preview_inputs = [prompt, preset, instruments, bpm, duration, steps]
+        for component in preview_inputs:
+            component.change(_update_preview, inputs=preview_inputs, outputs=prompt_preview)
+
+        preset.change(
+            _apply_preset_defaults,
+            inputs=preset,
+            outputs=[instruments, bpm, duration, steps, prompt_preview],
+        )
 
         gen_btn.click(
             fn=_dummy_generate,
