@@ -11,8 +11,14 @@ from app.config import DEFAULT_HOST, DEFAULT_PORT
 from app.core.audio import generate_dummy_audio
 from app.core.device import DeviceInfo, detect_device, vram_warning_for_model
 from app.core.prompt_builder import build_generation_params, format_params_preview
+from app.models.backends.capabilities import is_backend_ready
 from app.models.manager import DownloadState, get_manager
-from app.models.registry import default_model_key, get_model, list_models
+from app.models.registry import (
+    default_model_key,
+    format_duration_limit,
+    get_model,
+    list_models,
+)
 from app.presets.presets import PRESET_BY_LABEL, PRESET_LABELS
 
 # Dark theme CSS aligned with assets/mockup.html
@@ -71,6 +77,7 @@ footer { display: none !important; }
 }
 .lmt-tag-ok { color: #6ee7a0; font-size: 11px; }
 .lmt-tag-dl { color: #e7d06e; font-size: 11px; }
+.lmt-tag-soon { color: #9aa0b4; font-size: 11px; }
 """
 
 INSTRUMENTS = [
@@ -103,27 +110,51 @@ def _model_dropdown_update():
     )
 
 
+def _resolve_model_key(installed_key: str, dl_key: str) -> str:
+    if installed_key:
+        return installed_key
+    if dl_key:
+        return dl_key
+    return default_model_key()
+
+
+def _backend_label(model_key: str) -> str:
+    if is_backend_ready(model_key):
+        return "推論対応済"
+    return "近日対応"
+
+
+def _format_model_row_html(spec, status: str, manager) -> str:
+    if manager.is_downloaded(spec.key):
+        tag = '<span class="lmt-tag-ok">保管済み</span>'
+    elif manager.get_progress(spec.key).state == DownloadState.DOWNLOADING:
+        tag = '<span class="lmt-tag-dl">DL中</span>'
+    elif not is_backend_ready(spec.key):
+        tag = '<span class="lmt-tag-soon">近日対応</span>'
+    elif spec.optional:
+        tag = '<span class="lmt-tag-dl">任意</span>'
+    else:
+        tag = '<span class="lmt-tag-dl">未DL</span>'
+    optional = " <em>(任意)</em>" if spec.optional else ""
+    max_len = format_duration_limit(spec.max_duration_sec)
+    return (
+        f'<div class="lmt-model-row">'
+        f"<b>{spec.display_name}</b>{optional}<br>"
+        f'<span style="color:#9aa0b4;font-size:12px;">'
+        f"{spec.license} ／ 約 {spec.weights_size_gb}GB ／ VRAM {spec.vram_min_gb}GB〜 ／ "
+        f"最長 {max_len} ／ {_backend_label(spec.key)}<br>"
+        f"{spec.good_for}<br>"
+        f"— {status}"
+        f"</span> {tag}</div>"
+    )
+
+
 def _render_model_management_html() -> str:
     manager = get_manager()
     rows: list[str] = []
     for spec in list_models(include_optional=True):
         status = manager.format_model_status(spec)
-        if manager.is_downloaded(spec.key):
-            tag = '<span class="lmt-tag-ok">保管済み</span>'
-        elif manager.get_progress(spec.key).state == DownloadState.DOWNLOADING:
-            tag = '<span class="lmt-tag-dl">DL中</span>'
-        elif spec.optional:
-            tag = '<span class="lmt-tag-dl">任意</span>'
-        else:
-            tag = '<span class="lmt-tag-dl">未DL</span>'
-        optional = " <em>(任意)</em>" if spec.optional else ""
-        rows.append(
-            f'<div class="lmt-model-row">'
-            f"<b>{spec.display_name}</b>{optional}<br>"
-            f'<span style="color:#9aa0b4;font-size:12px;">'
-            f"約 {spec.weights_size_gb}GB / VRAM {spec.vram_min_gb}GB〜 — {status}"
-            f"</span> {tag}</div>"
-        )
+        rows.append(_format_model_row_html(spec, status, manager))
     return "\n".join(rows)
 
 
@@ -170,6 +201,35 @@ def _vram_warning_text(model_key: str, device_info: DeviceInfo) -> str:
     return warning or ""
 
 
+def _duration_slider_update(model_key: str, current_duration: float):
+    if not model_key:
+        model_key = default_model_key()
+    spec = get_model(model_key)
+    max_d = spec.max_duration_sec
+    clamped = min(max(float(current_duration), 10), max_d)
+    label = f"曲の長さ（秒）— 最大 {format_duration_limit(max_d)}（{spec.display_name}）"
+    return gr.Slider(minimum=10, maximum=max_d, value=clamped, step=1, label=label)
+
+
+def _model_selection_side_effects(model_key: str, current_duration: float, device_info: DeviceInfo):
+    if not model_key:
+        model_key = default_model_key()
+    spec = get_model(model_key)
+    dur = _duration_slider_update(model_key, current_duration)
+    vram = _vram_warning_text(model_key, device_info)
+    detail = (
+        f"【{spec.display_name}】 {spec.license} ／ 最長 {format_duration_limit(spec.max_duration_sec)}\n"
+        f"{spec.good_for}\n"
+        f"推論: {_backend_label(model_key)}"
+    )
+    return dur, gr.update(value=vram, visible=bool(vram)), detail
+
+
+def _on_model_pick(model_key: str, cur_duration: float, device_info: DeviceInfo):
+    dur, vram_upd, detail = _model_selection_side_effects(model_key, cur_duration, device_info)
+    return dur, vram_upd, detail
+
+
 def _update_preview(
     prompt: str,
     preset: str,
@@ -208,9 +268,19 @@ def _dummy_generate(
     bpm: float,
     duration: float,
     steps: float,
+    installed_model: str,
+    dl_model: str,
     progress: gr.Progress = gr.Progress(),
 ) -> tuple[str, str | None]:
     """Simulate generation with progress bar; returns audio path."""
+    model_key = _resolve_model_key(installed_model, dl_model)
+    if not is_backend_ready(model_key):
+        spec = get_model(model_key)
+        return (
+            f"⏳ {spec.display_name} — 推論バックエンドは近日対応です（PHASE 4）。DL と UI 確認のみ可能。",
+            None,
+        )
+
     params = build_generation_params(prompt, preset, instruments, bpm, duration, steps)
     total_steps = params.steps
     for i in range(total_steps):
@@ -224,6 +294,10 @@ def _dummy_generate(
 
 
 def build_ui(device_info: DeviceInfo) -> gr.Blocks:
+    init_spec = get_model(default_model_key())
+    init_duration_max = init_spec.max_duration_sec
+    init_duration_val = min(DEFAULT_PRESET_OBJ.default_duration_sec, init_duration_max)
+
     with gr.Blocks(title="ローカル音楽生成ツール", css=CUSTOM_CSS, theme=gr.themes.Base()) as demo:
         gr.HTML(
             f"""
@@ -258,6 +332,17 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                         interactive=False,
                         visible=bool(_vram_warning_text(default_model_key(), device_info)),
                         value=_vram_warning_text(default_model_key(), device_info),
+                    )
+                    model_detail = gr.Textbox(
+                        label="選択モデルの詳細",
+                        interactive=False,
+                        lines=4,
+                        value=(
+                            f"【{init_spec.display_name}】 {init_spec.license} ／ "
+                            f"最長 {format_duration_limit(init_spec.max_duration_sec)}\n"
+                            f"{init_spec.good_for}\n"
+                            f"推論: {_backend_label(init_spec.key)}"
+                        ),
                     )
                     dl_btn = gr.Button("⬇ 選択モデルをダウンロード", variant="secondary")
                     dl_progress_label = gr.Textbox(
@@ -323,7 +408,11 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                     gr.Markdown("#### 詳細設定")
                     bpm = gr.Slider(40, 200, value=DEFAULT_PRESET_OBJ.default_bpm, step=1, label="テンポ (BPM)")
                     duration = gr.Slider(
-                        10, 300, value=DEFAULT_PRESET_OBJ.default_duration_sec, step=1, label="曲の長さ（秒）"
+                        10,
+                        init_duration_max,
+                        value=init_duration_val,
+                        step=1,
+                        label=f"曲の長さ（秒）— 最大 {format_duration_limit(init_duration_max)}",
                     )
                     steps = gr.Slider(
                         10, 120, value=DEFAULT_PRESET_OBJ.default_steps, step=1, label="生成ステップ数（品質）"
@@ -337,12 +426,15 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                     audio_out = gr.Audio(label="生成された曲", type="filepath")
 
         dl_target.change(
-            lambda key: gr.update(
-                value=_vram_warning_text(key, device_info),
-                visible=bool(_vram_warning_text(key, device_info)),
-            ),
-            inputs=dl_target,
-            outputs=vram_warning,
+            lambda key, dur: _on_model_pick(key, dur, device_info),
+            inputs=[dl_target, duration],
+            outputs=[duration, vram_warning, model_detail],
+        )
+
+        model_dd.change(
+            lambda key, dur: _on_model_pick(key, dur, device_info),
+            inputs=[model_dd, duration],
+            outputs=[duration, vram_warning, model_detail],
         )
 
         model_panel_outputs = [model_dd, model_mgmt_html, dl_progress_label, dl_progress_bar]
@@ -366,7 +458,7 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
 
         gen_btn.click(
             fn=_dummy_generate,
-            inputs=[prompt, preset, instruments, bpm, duration, steps],
+            inputs=[prompt, preset, instruments, bpm, duration, steps, model_dd, dl_target],
             outputs=[progress_text, audio_out],
         )
 

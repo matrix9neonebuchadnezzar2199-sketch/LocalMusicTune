@@ -133,13 +133,29 @@ uv run localmusictune
 
 ## 対応モデル
 
-[Hugging Face ACE-Step モデル zoo](https://github.com/ace-step/ACE-Step-1.5#-model-zoo) に基づく定義です。
+**配布方針:** 商用利用可能なモデル（MIT / Apache-2.0）のみ UI に掲載しています。役割が異なるモデルを「数を増やす」のではなく**住み分け**で選べます。
 
-| 名称 | Hugging Face | 用途 |
-|------|--------------|------|
-| ACE-Step 1.5 XL (4B) | [`ACE-Step/acestep-v15-xl-base`](https://huggingface.co/ACE-Step/acestep-v15-xl-base) | **既定・高品質**（20 GB VRAM 推奨） |
-| ACE-Step 1.5 標準 (2B) | [`ACE-Step/acestep-v15-base`](https://huggingface.co/ACE-Step/acestep-v15-base) | 軽量・高速試行用 |
-| ACE-Step 1.5 XL Turbo | [`ACE-Step/acestep-v15-xl-turbo`](https://huggingface.co/ACE-Step/acestep-v15-xl-turbo) | XL 高速版（任意） |
+### 商用可モデル（ダウンロード・選択可能）
+
+| モデル | ライセンス | 向いている用途 | 最長 | VRAM 目安 | 推論 |
+|--------|-----------|----------------|------|-----------|------|
+| **ACE-Step 1.5 XL (4B)** | MIT | **既定。** 高品質万能（歌・インスト） | 4分 | 12〜20 GB | PHASE 4 |
+| ACE-Step 1.5 標準 (2B) | MIT | 軽量・高速試行 | 4分 | 4〜8 GB | PHASE 4 |
+| ACE-Step 1.5 XL Turbo | MIT | 8ステップ高速・試行錯誤 | 4分 | 12〜16 GB | PHASE 4 |
+| [DiffRhythm](https://github.com/ASLP-lab/DiffRhythm) full | Apache-2.0 | 歌+伴奏フルソングを**超高速**生成 | **4分45秒** | 8 GB〜 | 近日対応 |
+| [HeartMuLa](https://github.com/HeartMuLa/HeartLib) 3B | Apache-2.0 | 歌モノ・話題の新顔 | 6分 | 8〜16 GB | 近日対応 |
+| [YuE](https://huggingface.co/m-a-p/YuE-s1-7B-anneal-en-icl) 7B | Apache-2.0 | 歌詞重視・長尺（**生成は遅め**） | 5分 | 10〜16 GB | 近日対応 |
+
+> **RX 7900 XT（20 GB）** では上記すべて快適に動作する想定です。曲の長さスライダーは選択モデルの上限に自動連動します。
+
+推論バックエンド未実装のモデルは「**近日対応**」と表示され、DL と UI 確認まで可能です。実装順序: **ACE-Step 系 → DiffRhythm → YuE → HeartMuLa**（[PLAN.md](./PLAN.md) §7）。
+
+### 非商用モデル（参考のみ — UI 非掲載）
+
+| モデル | ライセンス | 理由 |
+|--------|-----------|------|
+| MusicGen (Meta) | CC BY-NC | 非商用。1回約30秒の短尺BGM向け |
+| Stable Audio Open | Stability AI Community License | 一定規模以上の商用に制限 |
 
 ---
 
@@ -176,7 +192,8 @@ uv run pytest
 
 | バージョン | 内容 | 状態 |
 |------------|------|------|
-| **v0.3.0** | UI・GPU 検出・プロンプト合成・モデル DL | ✅ リリース済 |
+| **v0.3.1** | XL 既定化・VRAM 警告 | ✅ リリース済 |
+| **v0.3.2** | 多モデル registry 拡充・役割分担 UI | ✅ リリース済 |
 | v0.4.0 | ACE-Step 推論バックエンド（本番生成） | 開発予定 |
 | v0.5.0 | 起動スクリプト（AMD / NVIDIA ワンクリック） | 開発予定 |
 | v1.0.0 | 配布準備・ドキュメント完成 | 開発予定 |
@@ -199,7 +216,7 @@ uv run pytest
 ## ライセンスとクレジット
 
 - **LocalMusicTune** — [MIT License](./LICENSE)
-- **推論エンジン [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5)** — MIT License（商用利用可）
+- **推論エンジン** — [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5)（MIT）、[DiffRhythm](https://github.com/ASLP-lab/DiffRhythm)（Apache-2.0）、[HeartMuLa](https://github.com/HeartMuLa/HeartLib)（Apache-2.0）、[YuE](https://huggingface.co/m-a-p/YuE-s1-7B-anneal-en-icl)（Apache-2.0）
 - **UI** — [Gradio](https://gradio.app/)（Apache 2.0）
 
 ACE-Step の利用時は、[公式リポジトリ](https://github.com/ace-step/ACE-Step-1.5) および各モデルの Hugging Face ページに記載のライセンス・引用情報に従ってください。
