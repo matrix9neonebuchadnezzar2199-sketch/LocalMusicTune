@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DiffRhythm, YuE, HeartMuLa inference backends
 - One-click launch scripts (PHASE 5)
 
+## [0.4.1] - 2026-06-07
+
+### Fixed
+- Remove `torch` / `torchaudio` from default dependencies so `uv run` no longer overwrites ROCm/CUDA wheels with PyPI CPU builds
+
+### Added
+- Optional `[project.optional-dependencies] cpu` extra for CPU-only environments
+
+### Changed
+- README / PLAN: PyTorch manual install flow and PHASE 5 startup-script policy
+
 ## [0.4.0] - 2026-06-07
 
 PHASE 4 — ACE-Step inference backend with sub-step CLI diagnostics.
@@ -72,7 +83,8 @@ First public pre-release. UI, prompt pipeline, and model download are functional
 - Generate button returns placeholder audio until v0.4.0 inference backend
 - Default `uv sync` installs CPU PyTorch; install GPU build separately for ROCm/CUDA
 
-[Unreleased]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.0...v0.3.1

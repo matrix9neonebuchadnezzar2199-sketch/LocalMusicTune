@@ -58,25 +58,53 @@ cd LocalMusicTune
 uv sync
 ```
 
-開発・テスト用ツールも入れる場合:
+開発・テスト用:
 
 ```powershell
 uv sync --extra dev
+uv run pytest
 ```
 
-### 3. PyTorch（GPU 版）のセットアップ
+GPU なしの CI / ローカル開発のみ CPU 版 torch が必要な場合（**ROCm / CUDA 環境では `--extra cpu` を付けない** — PyPI CPU 版で上書きされます）:
 
-`uv sync` で入る PyTorch は CPU ビルドです。**GPU 推論（v0.4.0 以降）を使う前に**、環境に合った PyTorch を別途インストールしてください。
+```powershell
+uv sync --extra dev --extra cpu
+```
 
-| GPU | 参考 |
-|-----|------|
-| **AMD Radeon (ROCm)** | [PyTorch ROCm 公式手順](https://pytorch.org/get-started/locally/) または [ACE-Step ROCm 起動ガイド](https://github.com/ace-step/ACE-Step-1.5) |
-| **NVIDIA (CUDA)** | [PyTorch CUDA 公式手順](https://pytorch.org/get-started/locally/) |
-| **GPU なし** | CPU フォールバックで UI とプレースホルダー生成は動作します |
+### 3. PyTorch（環境別 — `uv sync` では入りません）
+
+**重要:** `torch` / `torchaudio` は `pyproject.toml` の必須依存に**含めていません**。ここに書くと `uv run`（自動 sync）のたびに PyPI の CPU 版が入り、手動で入れた **ROCm / CUDA 版が上書き**されます。
+
+| 環境 | 手順 |
+|------|------|
+| **AMD Radeon (ROCm)** | 下記 ROCm wheel を `uv pip install`（[ACE-Step ROCm ガイド](https://github.com/ace-step/ACE-Step-1.5) 参照） |
+| **NVIDIA (CUDA)** | [PyTorch CUDA 公式](https://pytorch.org/get-started/locally/) の wheel を `uv pip install` |
+| **GPU なし（CPU のみ）** | `uv sync --extra cpu` で CPU 版 torch を導入 |
+
+推奨フロー（Radeon / RX 7900 XT 例）:
+
+```powershell
+uv sync
+# ↓ ROCm 版 PyTorch + ROCm SDK（例: ROCm 7.2 / Python 3.12 / Windows）
+# torch wheel 単体では rocm[libraries] 依存で失敗するため、SDK 一式を同時に入れる
+uv pip install --no-cache-dir `
+  https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm-7.2.0.dev0.tar.gz `
+  https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm_sdk_core-7.2.0.dev0-py3-none-win_amd64.whl `
+  https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm_sdk_devel-7.2.0.dev0-py3-none-win_amd64.whl `
+  https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm_sdk_libraries_custom-7.2.0.dev0-py3-none-win_amd64.whl `
+  https://repo.radeon.com/rocm/windows/rocm-rel-7.2/torch-2.9.1+rocmsdk20260116-cp312-cp312-win_amd64.whl `
+  https://repo.radeon.com/rocm/windows/rocm-rel-7.2/torchaudio-2.9.1+rocmsdk20260116-cp312-cp312-win_amd64.whl `
+  https://repo.radeon.com/rocm/windows/rocm-rel-7.2/torchvision-0.24.1+rocmsdk20260116-cp312-cp312-win_amd64.whl
+
+# --no-sync なしで GPU 認識が維持されるか確認
+uv run lmt-phase4 gpu-diag
+```
+
+> `uv sync` 実行時、手動導入した torch は「定義外」として削除される場合があります。その都度上記 wheel を入れ直してください（PHASE 5 の `start_rocm.bat` で自動化予定）。
 
 > WSL2 上の ROCm サポートは限定的です。**Radeon ユーザーは Windows ネイティブ環境を推奨**します。
 
-### 3. ACE-Step 1.5 推論エンジン（PHASE 4 必須）
+### 4. ACE-Step 1.5 推論エンジン（PHASE 4 必須）
 
 本番生成には [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5) パッケージが別途必要です（Python 3.11–3.12 推奨）。ROCm / CUDA 向け PyTorch を先に入れたうえで:
 
@@ -228,7 +256,8 @@ uv run pytest
 
 | 症状 | 対処 |
 |------|------|
-| ヘッダーが `CPU（GPU未検出）` | GPU 版 PyTorch が入っているか確認。再起動後に再試行 |
+| `uv run` 後に GPU 未検出 / CPU 版 torch に戻る | `pyproject.toml` の `dependencies` に torch が無いか確認。ROCm wheel を `uv pip install` し直す |
+| ヘッダーが `CPU（GPU未検出）` | GPU 版 PyTorch が入っているか確認。`uv run lmt-phase4 gpu-diag` |
 | モデル DL が失敗する | ネットワーク・ディスク容量を確認。`HF_TOKEN` が必要な場合は `.env` に設定 |
 | `uv sync` が失敗する | Python 3.10+ と uv の最新版を確認 |
 | 生成ボタンが「ace-step 未インストール」 | README § ACE-Step セットアップを実施 |

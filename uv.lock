@@ -589,7 +589,7 @@ wheels = [
 
 [[package]]
 name = "localmusictune"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "." }
 dependencies = [
     { name = "gradio" },
@@ -597,11 +597,13 @@ dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "soundfile" },
-    { name = "torch" },
-    { name = "torchaudio" },
 ]
 
 [package.optional-dependencies]
+cpu = [
+    { name = "torch" },
+    { name = "torchaudio" },
+]
 dev = [
     { name = "pytest" },
     { name = "ruff" },
@@ -615,10 +617,10 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
     { name = "soundfile", specifier = ">=0.12" },
-    { name = "torch", specifier = ">=2.2" },
-    { name = "torchaudio", specifier = ">=2.2" },
+    { name = "torch", marker = "extra == 'cpu'", specifier = ">=2.2" },
+    { name = "torchaudio", marker = "extra == 'cpu'", specifier = ">=2.2" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["cpu", "dev"]
 
 [[package]]
 name = "markdown-it-py"

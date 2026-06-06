@@ -1,6 +1,6 @@
 [project]
 name = "localmusictune"
-version = "0.4.0"
+version = "0.4.1"
 description = "Local music generation tool with Gradio UI (ACE-Step 1.5)"
 readme = "README.md"
 license = { text = "MIT" }
@@ -10,11 +10,17 @@ dependencies = [
     "huggingface-hub>=0.26",
     "numpy>=1.26",
     "soundfile>=0.12",
-    "torch>=2.2",
-    "torchaudio>=2.2",
+    # torch / torchaudio are NOT listed here — they are platform-specific
+    # (+cpu / +rocm / +cu*). Pinning them in dependencies causes `uv run` to
+    # reinstall PyPI CPU builds and overwrite a manually installed ROCm/CUDA stack.
 ]
 
 [project.optional-dependencies]
+# CPU-only fallback (no GPU). Do NOT use on AMD/NVIDIA — install ROCm/CUDA wheels instead.
+cpu = [
+    "torch>=2.2",
+    "torchaudio>=2.2",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.8",
