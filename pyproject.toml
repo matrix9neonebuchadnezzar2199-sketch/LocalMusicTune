@@ -1,0 +1,39 @@
+[project]
+name = "localmusictune"
+version = "0.1.0"
+description = "Local music generation tool with Gradio UI (ACE-Step 1.5)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "gradio>=5.0",
+    "huggingface-hub>=0.26",
+    "numpy>=1.26",
+    "soundfile>=0.12",
+    "torch>=2.2",
+    "torchaudio>=2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8",
+]
+
+[project.scripts]
+localmusictune = "app.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

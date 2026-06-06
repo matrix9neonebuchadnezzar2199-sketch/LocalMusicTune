@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ローカル音楽生成ツール - モックアップ</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #1a1d27;
+    --panel2: #232735;
+    --accent: #6c8cff;
+    --accent2: #4a6bff;
+    --text: #e8eaf0;
+    --muted: #9aa0b4;
+    --border: #2c3142;
+    --sidebar-w: 320px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  header {
+    padding: 14px 28px;
+    background: linear-gradient(90deg, #1a1d27, #232735);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .badge {
+    font-size: 12px;
+    background: var(--accent2);
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 12px;
+  }
+  /* ヘッダー右側の実行環境表示 */
+  header .gpu-info {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  header .gpu-info b { color: #6ee7a0; }
+
+  /* レイアウト：サイドバー + メイン */
+  .layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  /* サイドバー */
+  .sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    min-height: calc(100vh - 57px);
+    padding: 18px;
+    transition: width 0.2s, padding 0.2s;
+    overflow: hidden;
+  }
+  .sidebar.collapsed {
+    width: 48px;
+    padding: 18px 8px;
+  }
+  .sidebar.collapsed .sidebar-content,
+  .sidebar.collapsed .sidebar-title-text { display: none; }
+
+  .sidebar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--muted);
+    user-select: none;
+  }
+  .sidebar-toggle:hover { border-color: var(--accent); }
+  .sidebar-toggle .icon { font-size: 14px; }
+
+  /* 折り畳みセクション */
+  .section { margin-bottom: 12px; }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    user-select: none;
+  }
+  .section-head:hover { border-color: var(--accent); }
+  .section-head .chevron { transition: transform 0.2s; color: var(--muted); }
+  .section.closed .chevron { transform: rotate(-90deg); }
+  .section-body { padding: 12px 4px 4px; }
+  .section.closed .section-body { display: none; }
+
+  /* メイン */
+  .main {
+    flex: 1;
+    padding: 24px;
+    max-width: 860px;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+  textarea, input[type="text"] {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+  }
+  textarea { min-height: 80px; }
+
+  /* ドロップダウンリスト（薄いグレー背景で区別） */
+  select {
+    width: 100%;
+    background: #d7dae2;
+    border: 1px solid #b8bdca;
+    border-radius: 8px;
+    color: #1a1d27;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+
+  /* プリセット */
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; }
+  .preset {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.15s;
+    user-select: none;
+  }
+  .preset:hover { border-color: var(--accent); }
+  .preset.active { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+
+  /* 楽器チェックボックス */
+  .instruments {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .instrument {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .instrument input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  /* スライダー */
+  .slider-row { margin-bottom: 18px; }
+  .slider-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .slider-head .val { color: var(--accent); font-weight: 600; font-size: 14px; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); margin-top: 6px; }
+
+  /* ボタン */
+  .btn {
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .btn-primary { background: var(--accent2); color: #fff; }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-secondary {
+    background: var(--panel2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    padding: 9px;
+  }
+  .btn-secondary:hover { border-color: var(--accent); }
+
+  /* モデル管理 */
+  .model-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .model-row .meta { color: var(--muted); font-size: 12px; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .tag-ok { background: #1f3d2b; color: #6ee7a0; }
+  .tag-dl { background: #3d361f; color: #e7d06e; }
+
+  /* 進捗バー */
+  .progress-wrap {
+    background: var(--panel2);
+    border-radius: 8px;
+    overflow: hidden;
+    height: 22px;
+    margin-top: 8px;
+    position: relative;
+  }
+  .progress-bar {
+    height: 100%;
+    width: 62%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    transition: width 0.3s;
+  }
+  .progress-label {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: #fff;
+  }
+
+  /* 出力プレイヤー */
+  .player {
+    background: var(--panel2);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+  audio { width: 100%; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎵 ローカル音楽生成ツール</h1>
+  <span class="badge">Mockup</span>
+  <span class="badge" style="background:#3d361f;color:#e7d06e;">UIプレビュー（動作しません）</span>
+  <!-- 実行環境をヘッダー右端に移動 -->
+  <div class="gpu-info">
+    検出GPU: <b>AMD Radeon (ROCm)</b> ／ 起動モード: ROCm版で動作中
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- 左サイドバー：モデル関連 -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-toggle" onclick="toggleSidebar()">
+      <span class="icon" id="sidebarIcon">⮜</span>
+      <span class="sidebar-title-text">モデル設定</span>
+    </div>
+
+    <div class="sidebar-content">
+      <!-- 使用するモデル -->
+      <div class="section">
+        <div class="section-head" onclick="toggleSection(this)">
+          <span>使用するモデル</span>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="section-body">
+          <label>保管済みモデルから選択</label>
+          <select>
+            <option>ACE-Step 1.5 (4B / 標準) ✓保管済み</option>
+            <option>ACE-Step 1.5 XL (高品質) ✓保管済み</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- モデルの管理 -->
+      <div class="section">
+        <div class="section-head" onclick="toggleSection(this)">
+          <span>モデルの管理</span>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="section-body">
+
+          <div class="model-row">
+            <div>
+              ACE-Step 1.5 (4B)<br>
+              <span class="meta">約 8GB / VRAM 8GB〜</span>
+            </div>
+            <span class="tag tag-ok">保管済み</span>
+          </div>
+
+          <div class="model-row">
+            <div>
+              ACE-Step 1.5 XL<br>
+              <span class="meta">約 16GB / VRAM 12GB〜</span>
+            </div>
+            <span class="tag tag-ok">保管済み</span>
+          </div>
+
+          <div class="model-row">
+            <div>
+              DiffRhythm<br>
+              <span class="meta">約 6GB / VRAM 8GB〜</span>
+            </div>
+            <button class="btn btn-secondary" style="width:auto;">⬇</button>
+          </div>
+
+          <div class="model-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                HeartMuLa<br>
+                <span class="meta">ダウンロード中…</span>
+              </div>
+              <span class="tag tag-dl">DL中</span>
+            </div>
+            <div class="progress-wrap" style="height:16px;">
+              <div class="progress-bar" style="width:43%;"></div>
+              <div class="progress-label" style="font-size:11px;">43% (2.6GB / 6GB)</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- メイン：生成設定 -->
+  <main class="main">
+    <div class="panel">
+      <h2>イメージ（プロンプト）</h2>
+      <label>どんな曲にしたいか自由に入力してください</label>
+      <textarea placeholder="例：静かな雨の夜に合う、落ち着いたローファイヒップホップ。ゆったりしたビートで…"></textarea>
+    </div>
+
+    <div class="panel">
+      <h2>プリセット</h2>
+      <div class="presets">
+        <div class="preset active">😴 睡眠</div>
+        <div class="preset">🌿 チル</div>
+        <div class="preset">📚 集中・作業</div>
+        <div class="preset">☕ カフェ</div>
+        <div class="preset">🏃 ワークアウト</div>
+        <div class="preset">🎮 ゲーム</div>
+        <div class="preset">🎬 シネマティック</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>楽器</h2>
+      <div class="instruments">
+        <label class="instrument"><input type="checkbox" checked> ピアノ</label>
+        <label class="instrument"><input type="checkbox"> ヴァイオリン</label>
+        <label class="instrument"><input type="checkbox" checked> ギター</label>
+        <label class="instrument"><input type="checkbox"> ドラム</label>
+        <label class="instrument"><input type="checkbox"> ベース</label>
+        <label class="instrument"><input type="checkbox"> シンセ</label>
+        <label class="instrument"><input type="checkbox"> フルート</label>
+        <label class="instrument"><input type="checkbox"> チェロ</label>
+        <label class="instrument"><input type="checkbox"> パッド</label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>詳細設定</h2>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">テンポ (BPM)</label>
+          <span class="val">90 BPM</span>
+        </div>
+        <input type="range" min="40" max="200" value="90">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">曲の長さ</label>
+          <span class="val">120 秒</span>
+        </div>
+        <input type="range" min="10" max="300" value="120">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head">
+          <label style="margin:0;">生成ステップ数（品質）</label>
+          <span class="val">60</span>
+        </div>
+        <input type="range" min="10" max="120" value="60">
+      </div>
+    </div>
+
+    <button class="btn btn-primary">🎶 音楽を生成</button>
+
+    <div class="panel" style="margin-top:20px;">
+      <h2>生成の進捗</h2>
+      <div class="progress-wrap">
+        <div class="progress-bar"></div>
+        <div class="progress-label">生成中… 62%（ステップ 37 / 60）</div>
+      </div>
+      <div class="player">
+        生成された曲はここに表示されます
+        <audio controls></audio>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+  function toggleSidebar() {
+    const sb = document.getElementById('sidebar');
+    const icon = document.getElementById('sidebarIcon');
+    sb.classList.toggle('collapsed');
+    icon.textContent = sb.classList.contains('collapsed') ? '⮞' : '⮜';
+  }
+  function toggleSection(head) {
+    head.parentElement.classList.toggle('closed');
+  }
+</script>
+
+</body>
+</html>
