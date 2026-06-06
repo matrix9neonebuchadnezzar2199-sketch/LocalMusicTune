@@ -10,6 +10,7 @@ build/
 
 # Environment
 .env
+.cache/
 
 # Models and generated outputs (never commit) — root only
 /models/
