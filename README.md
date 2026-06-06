@@ -100,7 +100,21 @@ uv pip install --no-cache-dir `
 uv run lmt-phase4 gpu-diag
 ```
 
-> `uv sync` 実行時、手動導入した torch は「定義外」として削除される場合があります。その都度上記 wheel を入れ直してください（PHASE 5 の `start_rocm.bat` で自動化予定）。
+> `uv sync` 実行時、手動導入した torch は「定義外」として削除される場合があります。その都度上記 wheel を入れ直すか **`.\scripts\restore_rocm_env.ps1`**（PHASE 5 の `start_rocm.bat` で自動化予定）。
+
+### ROCm 環境の日常コマンド（巻き戻り防止）
+
+| やること | コマンド |
+|----------|----------|
+| 依存同期（torch は触らない） | `uv sync --extra dev` のみ — **`--extra cpu` は付けない** |
+| アプリ / CLI 起動 | `uv run --no-sync localmusictune` または `uv run --no-sync lmt-phase4 …` |
+| 環境確認 | `uv run --no-sync python -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"` |
+| 巻き戻ったとき | Gradio/Cursor を閉じて `.\scripts\restore_rocm_env.ps1` |
+
+**ACE-Step 再インストール時は必ず `--no-deps`:** `uv pip install -e H:\CURSOR\ACE-Step-1.5 --no-deps`  
+（deps ありだと PyPI torch 2.12 が解決されて ROCm が上書きされる）
+
+**`uv.lock` について:** torch は `[project.optional-dependencies] cpu` 用に lock に**残る**が、`uv sync`（extra なし）では**インストールされない**。巻き戻りの典型原因は `uv sync --extra cpu` または ACE-Step の deps 付き install。
 
 > WSL2 上の ROCm サポートは限定的です。**Radeon ユーザーは Windows ネイティブ環境を推奨**します。
 
@@ -263,7 +277,8 @@ uv run pytest
 | 症状 | 対処 |
 |------|------|
 | `ImportError: cannot import name 'group' from 'torch.distributed'` | v0.4.2+ では起動時に自動パッチ。手動なら `vector_quantize_pytorch/lookup_free_quantization.py` の distributed import を try/except 化 |
-| `uv run` 後に GPU 未検出 / CPU 版 torch に戻る | `pyproject.toml` の `dependencies` に torch が無いか確認。ROCm wheel を `uv pip install` し直す |
+| `uv run` 後に GPU 未検出 / CPU 版 torch に戻る | **原因:** `uv sync --extra cpu` または ACE-Step を `--no-deps` なしで入れ直した。**復旧:** Gradio/Cursor を閉じて `.\scripts\restore_rocm_env.ps1`。**日常:** `uv run --no-sync` を使う。ROCm 環境では **`uv sync --extra cpu` 禁止** |
+| `torch: 2.12.0` / `ModuleNotFoundError: acestep` | 上記と同じ巻き戻り。`uv.lock` に torch エントリがあっても **default の `uv sync` だけでは入らない** — `--extra cpu` が犯人になりやすい |
 | ヘッダーが `CPU（GPU未検出）` | GPU 版 PyTorch が入っているか確認。`uv run lmt-phase4 gpu-diag` |
 | モデル DL が失敗する | ネットワーク・ディスク容量を確認。`HF_TOKEN` が必要な場合は `.env` に設定 |
 | `uv sync` が失敗する | Python 3.10+ と uv の最新版を確認 |
