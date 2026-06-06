@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocalMusicTune — ステップ UI モーション検証</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #1a1d27;
+    --panel2: #232735;
+    --accent: #6c8cff;
+    --accent2: #4a6bff;
+    --text: #e8eaf0;
+    --muted: #9aa0b4;
+    --border: #2c3142;
+    --sidebar-w: 280px;
+    --lmt-motion-duration: 320ms;
+    --lmt-motion-ease: cubic-bezier(0, 0, 0.2, 1);
+    --lmt-motion-lift: 24px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  header {
+    padding: 14px 28px;
+    background: linear-gradient(90deg, #1a1d27, #232735);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .badge {
+    font-size: 12px;
+    background: var(--accent2);
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 12px;
+  }
+  header .hint {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ステップインジケーター（Smart Animate 連動想定） */
+  .step-indicator {
+    padding: 16px 28px 0;
+    max-width: 720px;
+  }
+  .step-indicator-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .step-indicator-head b { color: var(--accent); }
+  .step-track {
+    height: 6px;
+    background: var(--panel2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .step-fill {
+    height: 100%;
+    width: 25%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 3px;
+    transition: width var(--lmt-motion-duration) var(--lmt-motion-ease);
+  }
+
+  .layout { display: flex; min-height: calc(100vh - 57px); }
+  .sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 18px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .sidebar h3 { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+
+  .main {
+    flex: 1;
+    padding: 8px 28px 40px;
+    max-width: 720px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ステップパネル — ふわっと浮き上がり */
+  .step-panel {
+    position: absolute;
+    left: 28px;
+    right: 28px;
+    top: 8px;
+    opacity: 0;
+    transform: translateY(var(--lmt-motion-lift));
+    pointer-events: none;
+    transition:
+      opacity var(--lmt-motion-duration) var(--lmt-motion-ease),
+      transform var(--lmt-motion-duration) var(--lmt-motion-ease);
+  }
+  .step-panel.active {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    position: relative;
+    left: 0;
+    right: 0;
+  }
+  .step-panel.leaving {
+    opacity: 0;
+    transform: translateY(calc(var(--lmt-motion-lift) * -0.5));
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .panel h2 { margin: 0 0 8px; font-size: 20px; }
+  .panel p.sub { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+
+  .choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .choice {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 15px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .choice:hover { border-color: var(--accent); background: #2a3044; }
+  .choice.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+  .instruments { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: 0.15s;
+  }
+  .chip.on { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+
+  textarea {
+    width: 100%;
+    min-height: 100px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 12px;
+    font-family: inherit;
+    resize: vertical;
+  }
+
+  .nav-row { display: flex; gap: 12px; margin-top: 20px; }
+  .btn {
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-primary { background: var(--accent2); color: #fff; flex: 1; }
+  .btn-primary:hover { background: var(--accent); }
+
+  .spec-note {
+    margin-top: 24px;
+    padding: 12px 16px;
+    background: var(--panel2);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎵 ローカル音楽生成ツール</h1>
+  <span class="badge">Step UI モーション検証</span>
+  <span class="hint">320ms · Ease Out · +24px lift</span>
+</header>
+
+<div class="step-indicator">
+  <div class="step-indicator-head">
+    <span>設定ウィザード</span>
+    <span>Step <b id="stepNum">1</b> / <span id="stepTotal">4</span></span>
+  </div>
+  <div class="step-track">
+    <div class="step-fill" id="stepFill"></div>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h3>モデル設定（共通）</h3>
+    <p>ACE-Step 1.5 XL ✓保管済み<br>RX 7900 XT / ROCm</p>
+    <p style="margin-top:16px;font-size:11px;">サイドバーは遷移しない。メインのみ Smart Animate 想定。</p>
+  </aside>
+
+  <main class="main" id="main">
+
+    <!-- Step 1: プリセット -->
+    <section class="step-panel active" data-step="1">
+      <div class="panel">
+        <h2>どんなムードの曲にしますか？</h2>
+        <p class="sub">プリセットを選ぶと BPM や楽器の初期値が決まります</p>
+        <div class="choices" id="presetChoices">
+          <div class="choice" data-value="sleep">😴 睡眠</div>
+          <div class="choice" data-value="chill">🌿 チル</div>
+          <div class="choice" data-value="focus">📚 集中・作業</div>
+          <div class="choice" data-value="cafe">☕ カフェ</div>
+          <div class="choice" data-value="workout">🏃 ワークアウト</div>
+          <div class="choice" data-value="game">🎮 ゲーム</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 2: 楽器 -->
+    <section class="step-panel" data-step="2">
+      <div class="panel">
+        <h2>使う楽器は？</h2>
+        <p class="sub">複数選べます。次へで確定</p>
+        <div class="instruments" id="instChips">
+          <span class="chip" data-i="ピアノ">ピアノ</span>
+          <span class="chip" data-i="ギター">ギター</span>
+          <span class="chip" data-i="シンセ">シンセ</span>
+          <span class="chip" data-i="パッド">パッド</span>
+          <span class="chip" data-i="ドラム">ドラム</span>
+          <span class="chip" data-i="ヴァイオリン">ヴァイオリン</span>
+        </div>
+        <div class="nav-row">
+          <button type="button" class="btn btn-ghost" data-back>戻る</button>
+          <button type="button" class="btn btn-primary" data-next>次へ</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 3: プロンプト -->
+    <section class="step-panel" data-step="3">
+      <div class="panel">
+        <h2>イメージを言葉にすると？</h2>
+        <p class="sub">任意 — 空でもプリセットだけで生成できます</p>
+        <textarea placeholder="例：静かな雨の夜、穏やかなピアノ…"></textarea>
+        <div class="nav-row">
+          <button type="button" class="btn btn-ghost" data-back>戻る</button>
+          <button type="button" class="btn btn-primary" data-next>次へ</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 4: 確認 -->
+    <section class="step-panel" data-step="4">
+      <div class="panel">
+        <h2>仕上げの設定</h2>
+        <p class="sub">BPM 90 · 60秒 · 20ステップ（デモ固定）</p>
+        <p id="summary" style="font-size:14px;color:var(--muted);"></p>
+        <div class="nav-row">
+          <button type="button" class="btn btn-ghost" data-back>戻る</button>
+          <button type="button" class="btn btn-primary">🎶 音楽を生成（デモ）</button>
+        </div>
+      </div>
+      <div class="spec-note">
+        モーション仕様: Smart Animate 相当 · <strong>320ms</strong> ·
+        <strong>cubic-bezier(0,0,0.2,1)</strong> (Ease Out) ·
+        フェード + <strong>translateY(24px→0)</strong> · ステップバー同期。
+        詳細は <code>docs/UI_DESIGN.md</code>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  const TOTAL = 4;
+  const DURATION = 320;
+  let current = 1;
+  let selectedPreset = '';
+
+  const fill = document.getElementById('stepFill');
+  const stepNum = document.getElementById('stepNum');
+  const panels = [...document.querySelectorAll('.step-panel')];
+
+  function updateBar() {
+    stepNum.textContent = current;
+    fill.style.width = (current / TOTAL * 100) + '%';
+  }
+
+  function goTo(next) {
+    if (next === current || next < 1 || next > TOTAL) return;
+    const out = panels.find(p => +p.dataset.step === current);
+    const inn = panels.find(p => +p.dataset.step === next);
+    if (!out || !inn) return;
+
+    out.classList.remove('active');
+    out.classList.add('leaving');
+
+    setTimeout(() => {
+      out.classList.remove('leaving');
+      inn.classList.add('active');
+      current = next;
+      updateBar();
+      if (current === 4) {
+        document.getElementById('summary').textContent =
+          '選択: ' + (selectedPreset || '（未選択）') + ' — モックのため生成は行いません';
+      }
+    }, DURATION);
+  }
+
+  document.getElementById('presetChoices').addEventListener('click', e => {
+    const c = e.target.closest('.choice');
+    if (!c) return;
+    document.querySelectorAll('#presetChoices .choice').forEach(x => x.classList.remove('selected'));
+    c.classList.add('selected');
+    selectedPreset = c.textContent.trim();
+    setTimeout(() => goTo(2), 180);
+  });
+
+  document.getElementById('instChips').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (chip) chip.classList.toggle('on');
+  });
+
+  document.querySelectorAll('[data-next]').forEach(btn => {
+    btn.addEventListener('click', () => goTo(current + 1));
+  });
+  document.querySelectorAll('[data-back]').forEach(btn => {
+    btn.addEventListener('click', () => goTo(current - 1));
+  });
+
+  updateBar();
+</script>
+</body>
+</html>

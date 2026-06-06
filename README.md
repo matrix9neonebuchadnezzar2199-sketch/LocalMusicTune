@@ -15,7 +15,7 @@
 
 - **完全ローカル** — 生成処理を自分の PC 上で実行（Docker 不要）
 - **AMD / NVIDIA 両対応設計** — ROCm（Radeon）を第一級ターゲットに、CUDA も同等にサポート予定
-- **直感的な Web UI** — ダークテーマの Gradio インターフェース（[UI モック](./assets/mockup.html) 準拠）
+- **直感的な Web UI** — ダークテーマの Gradio インターフェース（[1画面モック](./assets/mockup.html) 準拠）。次世代 UX として [ステップ UI モーション検証](./assets/mockup-steps.html) を設計中（[UI_DESIGN.md](./docs/UI_DESIGN.md)）
 - **7 種類のムードプリセット** — 睡眠・チル・集中・カフェ・ワークアウト・ゲーム・シネマティック
 - **ACE-Step 1.5 推論（PHASE 4）** — 公式 `acestep.inference` API をラップ、進捗バー連動・VRAM 警告・CPU フォールバック
 - **合成プロンプトプレビュー** — UI 上で最終プロンプトをリアルタイム確認
@@ -222,7 +222,10 @@ LocalMusicTune/
 │   ├── core/                # GPU 検出・プロンプト合成・音声 I/O
 │   ├── models/              # レジストリ・DL 管理・推論バックエンド
 │   └── presets/             # ムードプリセット定義
-├── assets/mockup.html       # UI 設計モック
+├── assets/
+│   ├── mockup.html          # 1画面 UI 設計モック（現行 Gradio）
+│   └── mockup-steps.html    # ステップ UI · モーション検証（320ms / Ease Out）
+├── docs/UI_DESIGN.md        # UI 設計・Smart Animate 仕様
 ├── models/                  # DL モデル（git 管理外）
 ├── outputs/                 # 生成音声（git 管理外）
 ├── tests/                   # pytest
