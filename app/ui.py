@@ -1,17 +1,19 @@
-"""Gradio UI — mockup layout with prompt preview and dummy generation."""
+"""Gradio UI — mockup layout with real ACE-Step generation."""
 
 from __future__ import annotations
 
-import gradio as gr
-
+import queue
+import threading
+from collections.abc import Iterator
 from typing import Any
+
+import gradio as gr
 
 from app.config import DEFAULT_HOST, DEFAULT_PORT
 from app.core.device import DeviceInfo, detect_device, vram_warning_for_model
 from app.core.generator import MusicGenerator
 from app.core.prompt_builder import build_generation_params, format_params_preview
 from app.models.ace_step_config import DEFAULT_INFERENCE_STEPS
-from app.models.backends.base import gradio_progress_adapter
 from app.models.backends.capabilities import is_backend_ready
 from app.models.manager import DownloadState, get_manager
 from app.models.registry import (
@@ -22,7 +24,12 @@ from app.models.registry import (
 )
 from app.presets.presets import PRESET_BY_LABEL, PRESET_LABELS
 
-# Dark theme CSS aligned with assets/mockup.html
+FIRST_RUN_HINT = (
+    "⏳ 生成を開始しています…（初回は数分〜かかる場合があります。MIOpen カーネルコンパイル中は"
+    "進捗が止まって見えることがあります）"
+)
+
+# Dark theme CSS aligned with assets/mockup.html — passed to demo.launch() on Gradio 6+
 CUSTOM_CSS = """
 :root {
   --bg: #0f1117;
@@ -80,6 +87,22 @@ footer { display: none !important; }
 .lmt-tag-dl { color: #e7d06e; font-size: 11px; }
 .lmt-tag-soon { color: #9aa0b4; font-size: 11px; }
 """
+
+LMT_THEME = gr.themes.Base(
+    primary_hue=gr.themes.colors.blue,
+    neutral_hue=gr.themes.colors.slate,
+).set(
+    body_background_fill="#0f1117",
+    body_background_fill_dark="#0f1117",
+    block_background_fill="#1a1d27",
+    block_background_fill_dark="#1a1d27",
+    block_border_color="#2c3142",
+    block_border_color_dark="#2c3142",
+    body_text_color="#e8eaf0",
+    body_text_color_dark="#e8eaf0",
+    button_primary_background_fill="#4a6bff",
+    button_primary_background_fill_dark="#4a6bff",
+)
 
 INSTRUMENTS = [
     "ピアノ",
@@ -282,7 +305,18 @@ def _apply_preset_defaults(preset: str) -> tuple[list[str], float, float, float,
     )
 
 
-def _run_generate(
+def _format_generation_progress(
+    step: int,
+    total: int,
+    fraction: float,
+    message: str = "",
+) -> str:
+    pct = int(fraction * 100)
+    detail = message or "拡散ステップ実行中"
+    return f"生成中: ステップ {step}/{total} ({pct}%) — {detail}"
+
+
+def _run_generate_stream(
     prompt: str,
     preset: str,
     instruments: list[str],
@@ -292,32 +326,69 @@ def _run_generate(
     installed_model: str,
     dl_model: str,
     device_info: DeviceInfo,
-    progress: gr.Progress = gr.Progress(),
-) -> tuple[str, str | None]:
+) -> Iterator[tuple[str, str | None, float, dict]]:
+    """Yield progress updates while ACE-Step generates (Gradio 6 generator pattern)."""
     model_key = _resolve_model_key(installed_model, dl_model)
     gen = MusicGenerator(device_info)
     can, reason = gen.can_generate(model_key)
+    btn_busy = gr.update(interactive=False)
+    btn_idle = gr.update(interactive=True)
+
     if not can:
-        return f"⚠️ {reason}", None
+        yield f"⚠️ {reason}", None, 0.0, btn_idle
+        return
 
     params = build_generation_params(prompt, preset, instruments, bpm, duration, steps)
     vram_warn = gen.vram_warning(model_key)
-    if vram_warn:
-        progress(0, desc="VRAM警告あり — オフロードで続行…")
+    updates: queue.Queue = queue.Queue()
 
-    result = gen.generate(
-        model_key,
-        params,
-        progress=gradio_progress_adapter(progress),
-        instrumental=True,
-        thinking=False,
-    )
-    if result.ok and result.output_path:
-        msg = result.message
-        if vram_warn:
-            msg = f"{vram_warn}\n{msg}"
-        return msg, str(result.output_path)
-    return f"❌ {result.error or result.message or '生成失敗'}", None
+    def progress_cb(fraction: float, *, step: int, total: int, message: str = "") -> None:
+        updates.put(("progress", fraction, step, total, message))
+
+    def worker() -> None:
+        try:
+            result = gen.generate(
+                model_key,
+                params,
+                progress=progress_cb,
+                instrumental=True,
+                thinking=False,
+            )
+            updates.put(("done", result))
+        except Exception as exc:  # noqa: BLE001
+            updates.put(("error", str(exc)))
+
+    threading.Thread(target=worker, daemon=True).start()
+
+    if vram_warn:
+        yield f"{vram_warn}\n{FIRST_RUN_HINT}", None, 0.0, btn_busy
+    else:
+        yield FIRST_RUN_HINT, None, 0.0, btn_busy
+
+    while True:
+        kind, *payload = updates.get()
+        if kind == "progress":
+            fraction, step, total, message = payload
+            yield (
+                _format_generation_progress(step, total, fraction, message),
+                None,
+                float(fraction),
+                btn_busy,
+            )
+        elif kind == "done":
+            result = payload[0]
+            if result.ok and result.output_path:
+                msg = result.message or "生成完了"
+                if vram_warn:
+                    msg = f"{vram_warn}\n{msg}"
+                yield f"✅ {msg}", str(result.output_path), 1.0, btn_idle
+            else:
+                err = result.error or result.message or "生成失敗"
+                yield f"❌ {err}", None, 0.0, btn_idle
+            return
+        elif kind == "error":
+            yield f"❌ {payload[0]}", None, 0.0, btn_idle
+            return
 
 
 def build_ui(device_info: DeviceInfo) -> gr.Blocks:
@@ -325,12 +396,12 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
     init_duration_max = init_spec.max_duration_sec
     init_duration_val = min(DEFAULT_PRESET_OBJ.default_duration_sec, init_duration_max)
 
-    with gr.Blocks(title="ローカル音楽生成ツール", css=CUSTOM_CSS, theme=gr.themes.Base()) as demo:
+    with gr.Blocks(title="ローカル音楽生成ツール") as demo:
         gr.HTML(
             f"""
             <div class="lmt-header">
               <h1>🎵 ローカル音楽生成ツール</h1>
-              <span class="lmt-badge">PHASE 4</span>
+              <span class="lmt-badge">PHASE 4-4</span>
               <div class="lmt-gpu-info">
                 検出GPU: <b style="color:#6ee7a0;">{device_info.display_label}</b>
                 ／ 起動モード: {device_info.mode_label}
@@ -449,7 +520,20 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
 
                 with gr.Group():
                     gr.Markdown("#### 生成の進捗")
-                    progress_text = gr.Textbox(value="待機中", label="進捗", interactive=False)
+                    progress_text = gr.Textbox(
+                        value="待機中 — 生成ボタンを押すと開始します",
+                        label="進捗",
+                        interactive=False,
+                        lines=3,
+                    )
+                    gen_progress_bar = gr.Slider(
+                        minimum=0,
+                        maximum=1,
+                        value=0,
+                        step=0.01,
+                        label="生成進捗（拡散ステップ）",
+                        interactive=False,
+                    )
                     audio_out = gr.Audio(label="生成された曲", type="filepath")
 
         dl_target.change(
@@ -492,9 +576,8 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
             steps: float,
             installed_model: str,
             dl_model: str,
-            progress: gr.Progress = gr.Progress(),
-        ) -> tuple[str, str | None]:
-            return _run_generate(
+        ) -> Iterator[tuple[str, str | None, float, dict]]:
+            yield from _run_generate_stream(
                 prompt,
                 preset,
                 instruments,
@@ -504,13 +587,12 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                 installed_model,
                 dl_model,
                 device_info,
-                progress=progress,
             )
 
         gen_btn.click(
             fn=_run_generate_ui,
             inputs=[prompt, preset, instruments, bpm, duration, steps, model_dd, dl_target],
-            outputs=[progress_text, audio_out],
+            outputs=[progress_text, audio_out, gen_progress_bar, gen_btn],
         )
 
     return demo
@@ -523,4 +605,6 @@ def launch(device_info: DeviceInfo | None = None, **kwargs: Any) -> None:
         server_name=kwargs.get("server_name", DEFAULT_HOST),
         server_port=kwargs.get("server_port", DEFAULT_PORT),
         share=kwargs.get("share", False),
+        css=CUSTOM_CSS,
+        theme=LMT_THEME,
     )

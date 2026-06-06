@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DiffRhythm, YuE, HeartMuLa inference backends
 - One-click launch scripts (PHASE 5)
 
+## [0.4.3] - 2026-06-07
+
+### Added
+- Gradio 6: move `css` / `theme` from `gr.Blocks` to `demo.launch()` (mock dark theme restored)
+- UI generate button wired to `MusicGenerator.generate` via generator/yield (non-blocking)
+- Live diffusion progress: step n/N text + slider; first-run time hint
+
+### Changed
+- PHASE 4-4 / 4-5 marked implemented in PLAN.md
+
 ## [0.4.2] - 2026-06-07
 
 ### Added
@@ -93,7 +103,8 @@ First public pre-release. UI, prompt pipeline, and model download are functional
 - Generate button returns placeholder audio until v0.4.0 inference backend
 - Default `uv sync` installs CPU PyTorch; install GPU build separately for ROCm/CUDA
 
-[Unreleased]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.2...v0.4.0
