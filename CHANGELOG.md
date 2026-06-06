@@ -8,9 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- ACE-Step 1.5 inference backend (PHASE 4 — first priority)
-- DiffRhythm, YuE, HeartMuLa backends (post ACE-Step)
-- One-click launch scripts for ROCm / CUDA on Windows and Linux
+- DiffRhythm, YuE, HeartMuLa inference backends
+- One-click launch scripts (PHASE 5)
+
+## [0.4.0] - 2026-06-07
+
+PHASE 4 — ACE-Step inference backend with sub-step CLI diagnostics.
+
+### Added
+- `AceStepBackend` wrapping official `acestep.inference.generate_music`
+- `MusicGenerator` orchestration with VRAM-aware CPU offload
+- Checkpoint symlink bridge: `models/` → `checkpoints/acestep-v15-*`
+- GPU diagnostics CLI (`uv run lmt-phase4 gpu-diag`) — PHASE 4-1
+- ACE load / minimal generate CLI — PHASE 4-2 / 4-3
+- UI wired to real generation with Gradio progress adapter
+- Dynamic step slider limits for XL Turbo (8-step class)
+
+### Notes
+- Requires separate ACE-Step 1.5 package install (Python 3.11–3.12)
+- LM thinking disabled by default (`thinking=False`) for simpler first-run path
 
 ## [0.3.2] - 2026-06-07
 
@@ -56,7 +72,8 @@ First public pre-release. UI, prompt pipeline, and model download are functional
 - Generate button returns placeholder audio until v0.4.0 inference backend
 - Default `uv sync` installs CPU PyTorch; install GPU build separately for ROCm/CUDA
 
-[Unreleased]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/releases/tag/v0.3.0

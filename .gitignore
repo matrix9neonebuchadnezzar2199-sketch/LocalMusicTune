@@ -14,6 +14,7 @@ build/
 # Models and generated outputs (never commit) — root only
 /models/
 /outputs/
+/checkpoints/
 
 # IDE
 .idea/

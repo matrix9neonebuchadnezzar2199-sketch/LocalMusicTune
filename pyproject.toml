@@ -1,6 +1,6 @@
 [project]
 name = "localmusictune"
-version = "0.3.2"
+version = "0.4.0"
 description = "Local music generation tool with Gradio UI (ACE-Step 1.5)"
 readme = "README.md"
 license = { text = "MIT" }
@@ -22,6 +22,7 @@ dev = [
 
 [project.scripts]
 localmusictune = "app.main:main"
+lmt-phase4 = "app.cli.phase4:main"
 
 [build-system]
 requires = ["hatchling"]

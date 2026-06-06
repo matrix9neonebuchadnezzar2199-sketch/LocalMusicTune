@@ -7,7 +7,7 @@
 
 **Windows / Linux 向けのローカル AI 音楽生成ツール。** ブラウザ上の Gradio UI から、プロンプト・ムードプリセット・楽器・BPM を指定して曲を生成します。クラウド API 不要、モデルは Hugging Face からローカルに取得して動作します。
 
-> **現在 v0.3.0（プレリリース）** — Web UI・プロンプト合成・モデルダウンロードまで利用可能です。**ACE-Step による本番推論は v0.4.0 で実装予定**です。現時点の「生成」ボタンは UI 動作確認用のプレースホルダーです。
+> **現在 v0.4.0（プレリリース）** — ACE-Step 1.5 系（標準 2B / XL 4B / XL Turbo）の**本番推論**に対応。DiffRhythm / HeartMuLa / YuE は registry 掲載のみ（推論は今後）。
 
 ---
 
@@ -17,7 +17,7 @@
 - **AMD / NVIDIA 両対応設計** — ROCm（Radeon）を第一級ターゲットに、CUDA も同等にサポート予定
 - **直感的な Web UI** — ダークテーマの Gradio インターフェース（[UI モック](./assets/mockup.html) 準拠）
 - **7 種類のムードプリセット** — 睡眠・チル・集中・カフェ・ワークアウト・ゲーム・シネマティック
-- **ACE-Step 1.5 モデル管理** — Hugging Face からワンクリック DL、保管済みモデルの選択
+- **ACE-Step 1.5 推論（PHASE 4）** — 公式 `acestep.inference` API をラップ、進捗バー連動・VRAM 警告・CPU フォールバック
 - **合成プロンプトプレビュー** — UI 上で最終プロンプトをリアルタイム確認
 
 ## 動作環境
@@ -76,6 +76,20 @@ uv sync --extra dev
 
 > WSL2 上の ROCm サポートは限定的です。**Radeon ユーザーは Windows ネイティブ環境を推奨**します。
 
+### 3. ACE-Step 1.5 推論エンジン（PHASE 4 必須）
+
+本番生成には [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5) パッケージが別途必要です（Python 3.11–3.12 推奨）。ROCm / CUDA 向け PyTorch を先に入れたうえで:
+
+```powershell
+# 例: ACE-Step を clone して同一 venv に editable install
+git clone https://github.com/ace-step/ACE-Step-1.5.git
+cd ACE-Step-1.5
+uv sync
+uv pip install -e .
+```
+
+LocalMusicTune 側では `models/` に DL した重みを `checkpoints/acestep-v15-*` へ自動リンクします。
+
 ---
 
 ## 使い方
@@ -107,7 +121,15 @@ uv run localmusictune
 4. **合成プロンプト（プレビュー）** で最終プロンプトを確認
 5. **「🎶 音楽を生成」** をクリック
 
-> v0.3.0 ではプレースホルダー音声が返ります。本番の ACE-Step 推論は次バージョンで有効化されます。
+> **ace-step 未インストール時**はエラーになります。[ACE-Step セットアップ](#3-acestep-15-推論エンジンphase-4-必須) を先に完了してください。
+
+### PHASE 4 検証 CLI（Radeon 実機推奨）
+
+```powershell
+uv run lmt-phase4 gpu-diag
+uv run lmt-phase4 ace-load --model ace-1.5-standard
+uv run lmt-phase4 ace-generate --model ace-1.5-standard --duration 10 --steps 20 -v
+```
 
 ### 生成ファイルの保存先
 
@@ -193,8 +215,8 @@ uv run pytest
 | バージョン | 内容 | 状態 |
 |------------|------|------|
 | **v0.3.1** | XL 既定化・VRAM 警告 | ✅ リリース済 |
-| **v0.3.2** | 多モデル registry 拡充・役割分担 UI | ✅ リリース済 |
-| v0.4.0 | ACE-Step 推論バックエンド（本番生成） | 開発予定 |
+| **v0.3.2** | 多モデル registry 拡充 | ✅ リリース済 |
+| **v0.4.0** | ACE-Step 推論バックエンド（2B / XL / Turbo） | ✅ リリース済 |
 | v0.5.0 | 起動スクリプト（AMD / NVIDIA ワンクリック） | 開発予定 |
 | v1.0.0 | 配布準備・ドキュメント完成 | 開発予定 |
 
@@ -209,7 +231,8 @@ uv run pytest
 | ヘッダーが `CPU（GPU未検出）` | GPU 版 PyTorch が入っているか確認。再起動後に再試行 |
 | モデル DL が失敗する | ネットワーク・ディスク容量を確認。`HF_TOKEN` が必要な場合は `.env` に設定 |
 | `uv sync` が失敗する | Python 3.10+ と uv の最新版を確認 |
-| ポート 7860 が使用中 | `.env` で `LMT_PORT=7861` 等に変更 |
+| 生成ボタンが「ace-step 未インストール」 | README § ACE-Step セットアップを実施 |
+| `lmt-phase4 gpu-diag` が FAIL | GPU 版 PyTorch / ROCm ドライバを確認。Windows ネイティブ ROCm 推奨 |
 
 ---
 

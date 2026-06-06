@@ -40,6 +40,12 @@ def test_heartmula_repo_id():
     assert spec.optional is True
 
 
+def test_ace_models_backend_ready():
+    assert get_model("ace-1.5-standard").backend_ready is True
+    assert get_model("ace-1.5-xl-base").backend_ready is True
+    assert not get_model("diffrhythm-full").backend_ready
+
+
 def test_optional_models():
     optional = {m.key for m in list_models(include_optional=True) if m.optional}
     assert optional == {"ace-1.5-xl-turbo", "heartmula-3b"}

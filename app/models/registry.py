@@ -54,6 +54,7 @@ MODELS: dict[str, ModelSpec] = {
         max_duration_sec=240,
         good_for="万能。歌もインストも。軽くて速い。手軽に試す用。",
         family="ace_step",
+        backend_ready=True,
     ),
     "ace-1.5-xl-base": ModelSpec(
         key="ace-1.5-xl-base",
@@ -67,6 +68,7 @@ MODELS: dict[str, ModelSpec] = {
         good_for="高品質な万能型。RX 7900 XT 等 20GB クラスの主軸。",
         family="ace_step",
         default=True,
+        backend_ready=True,
     ),
     "ace-1.5-xl-turbo": ModelSpec(
         key="ace-1.5-xl-turbo",
@@ -80,6 +82,7 @@ MODELS: dict[str, ModelSpec] = {
         good_for="高速生成。何曲も試行錯誤したいとき。",
         family="ace_step",
         optional=True,
+        backend_ready=True,
     ),
     # --- DiffRhythm（Apache-2.0）https://github.com/ASLP-lab/DiffRhythm ---
     "diffrhythm-full": ModelSpec(

@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-import time
-from typing import Any
-
 import gradio as gr
 
+from typing import Any
+
 from app.config import DEFAULT_HOST, DEFAULT_PORT
-from app.core.audio import generate_dummy_audio
 from app.core.device import DeviceInfo, detect_device, vram_warning_for_model
+from app.core.generator import MusicGenerator
 from app.core.prompt_builder import build_generation_params, format_params_preview
+from app.models.ace_step_config import DEFAULT_INFERENCE_STEPS
+from app.models.backends.base import gradio_progress_adapter
 from app.models.backends.capabilities import is_backend_ready
 from app.models.manager import DownloadState, get_manager
 from app.models.registry import (
@@ -211,23 +212,43 @@ def _duration_slider_update(model_key: str, current_duration: float):
     return gr.Slider(minimum=10, maximum=max_d, value=clamped, step=1, label=label)
 
 
-def _model_selection_side_effects(model_key: str, current_duration: float, device_info: DeviceInfo):
+def _steps_slider_update(model_key: str, current_steps: float):
+    if not model_key:
+        model_key = default_model_key()
+    default = DEFAULT_INFERENCE_STEPS.get(model_key, 50)
+    max_steps = 20 if "turbo" in model_key else 120
+    if default <= 20:
+        max_steps = min(max_steps, 20)
+    clamped = min(max(float(current_steps), 10), max_steps)
+    return gr.Slider(
+        minimum=10,
+        maximum=max_steps,
+        value=min(clamped, default) if current_steps == DEFAULT_PRESET_OBJ.default_steps else clamped,
+        step=1,
+        label=f"生成ステップ数（品質）— 推奨 {default}",
+    )
+
+
+def _model_selection_side_effects(model_key: str, current_duration: float, current_steps: float, device_info: DeviceInfo):
     if not model_key:
         model_key = default_model_key()
     spec = get_model(model_key)
     dur = _duration_slider_update(model_key, current_duration)
+    steps = _steps_slider_update(model_key, current_steps)
     vram = _vram_warning_text(model_key, device_info)
     detail = (
         f"【{spec.display_name}】 {spec.license} ／ 最長 {format_duration_limit(spec.max_duration_sec)}\n"
         f"{spec.good_for}\n"
         f"推論: {_backend_label(model_key)}"
     )
-    return dur, gr.update(value=vram, visible=bool(vram)), detail
+    return dur, steps, gr.update(value=vram, visible=bool(vram)), detail
 
 
-def _on_model_pick(model_key: str, cur_duration: float, device_info: DeviceInfo):
-    dur, vram_upd, detail = _model_selection_side_effects(model_key, cur_duration, device_info)
-    return dur, vram_upd, detail
+def _on_model_pick(model_key: str, cur_duration: float, cur_steps: float, device_info: DeviceInfo):
+    dur, steps, vram_upd, detail = _model_selection_side_effects(
+        model_key, cur_duration, cur_steps, device_info
+    )
+    return dur, steps, vram_upd, detail
 
 
 def _update_preview(
@@ -261,7 +282,7 @@ def _apply_preset_defaults(preset: str) -> tuple[list[str], float, float, float,
     )
 
 
-def _dummy_generate(
+def _run_generate(
     prompt: str,
     preset: str,
     instruments: list[str],
@@ -270,27 +291,33 @@ def _dummy_generate(
     steps: float,
     installed_model: str,
     dl_model: str,
+    device_info: DeviceInfo,
     progress: gr.Progress = gr.Progress(),
 ) -> tuple[str, str | None]:
-    """Simulate generation with progress bar; returns audio path."""
     model_key = _resolve_model_key(installed_model, dl_model)
-    if not is_backend_ready(model_key):
-        spec = get_model(model_key)
-        return (
-            f"⏳ {spec.display_name} — 推論バックエンドは近日対応です（PHASE 4）。DL と UI 確認のみ可能。",
-            None,
-        )
+    gen = MusicGenerator(device_info)
+    can, reason = gen.can_generate(model_key)
+    if not can:
+        return f"⚠️ {reason}", None
 
     params = build_generation_params(prompt, preset, instruments, bpm, duration, steps)
-    total_steps = params.steps
-    for i in range(total_steps):
-        time.sleep(0.02)
-        pct = int((i + 1) / total_steps * 100)
-        progress(i / total_steps, desc=f"生成中… {pct}%（ステップ {i + 1} / {total_steps}）")
+    vram_warn = gen.vram_warning(model_key)
+    if vram_warn:
+        progress(0, desc="VRAM警告あり — オフロードで続行…")
 
-    out = generate_dummy_audio(duration_sec=min(params.duration_sec, 10.0), silent=False)
-    status = f"ダミー生成完了 — {params.preset_id} / {params.bpm}BPM / {params.duration_sec}秒"
-    return status, str(out)
+    result = gen.generate(
+        model_key,
+        params,
+        progress=gradio_progress_adapter(progress),
+        instrumental=True,
+        thinking=False,
+    )
+    if result.ok and result.output_path:
+        msg = result.message
+        if vram_warn:
+            msg = f"{vram_warn}\n{msg}"
+        return msg, str(result.output_path)
+    return f"❌ {result.error or result.message or '生成失敗'}", None
 
 
 def build_ui(device_info: DeviceInfo) -> gr.Blocks:
@@ -303,7 +330,7 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
             f"""
             <div class="lmt-header">
               <h1>🎵 ローカル音楽生成ツール</h1>
-              <span class="lmt-badge">PHASE 3</span>
+              <span class="lmt-badge">PHASE 4</span>
               <div class="lmt-gpu-info">
                 検出GPU: <b style="color:#6ee7a0;">{device_info.display_label}</b>
                 ／ 起動モード: {device_info.mode_label}
@@ -418,7 +445,7 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                         10, 120, value=DEFAULT_PRESET_OBJ.default_steps, step=1, label="生成ステップ数（品質）"
                     )
 
-                gen_btn = gr.Button("🎶 音楽を生成（ダミー）", variant="primary")
+                gen_btn = gr.Button("🎶 音楽を生成", variant="primary")
 
                 with gr.Group():
                     gr.Markdown("#### 生成の進捗")
@@ -426,15 +453,15 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                     audio_out = gr.Audio(label="生成された曲", type="filepath")
 
         dl_target.change(
-            lambda key, dur: _on_model_pick(key, dur, device_info),
-            inputs=[dl_target, duration],
-            outputs=[duration, vram_warning, model_detail],
+            lambda key, dur, st: _on_model_pick(key, dur, st, device_info),
+            inputs=[dl_target, duration, steps],
+            outputs=[duration, steps, vram_warning, model_detail],
         )
 
         model_dd.change(
-            lambda key, dur: _on_model_pick(key, dur, device_info),
-            inputs=[model_dd, duration],
-            outputs=[duration, vram_warning, model_detail],
+            lambda key, dur, st: _on_model_pick(key, dur, st, device_info),
+            inputs=[model_dd, duration, steps],
+            outputs=[duration, steps, vram_warning, model_detail],
         )
 
         model_panel_outputs = [model_dd, model_mgmt_html, dl_progress_label, dl_progress_bar]
@@ -456,8 +483,32 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
             outputs=[instruments, bpm, duration, steps, prompt_preview],
         )
 
+        def _run_generate_ui(
+            prompt: str,
+            preset: str,
+            instruments: list[str],
+            bpm: float,
+            duration: float,
+            steps: float,
+            installed_model: str,
+            dl_model: str,
+            progress: gr.Progress = gr.Progress(),
+        ) -> tuple[str, str | None]:
+            return _run_generate(
+                prompt,
+                preset,
+                instruments,
+                bpm,
+                duration,
+                steps,
+                installed_model,
+                dl_model,
+                device_info,
+                progress=progress,
+            )
+
         gen_btn.click(
-            fn=_dummy_generate,
+            fn=_run_generate_ui,
             inputs=[prompt, preset, instruments, bpm, duration, steps, model_dd, dl_target],
             outputs=[progress_text, audio_out],
         )
