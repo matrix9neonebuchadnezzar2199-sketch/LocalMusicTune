@@ -1,6 +1,6 @@
 [project]
 name = "localmusictune"
-version = "0.1.0"
+version = "0.3.0"
 description = "Local music generation tool with Gradio UI (ACE-Step 1.5)"
 readme = "README.md"
 license = { text = "MIT" }
