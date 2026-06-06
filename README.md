@@ -256,6 +256,7 @@ uv run pytest
 
 | 症状 | 対処 |
 |------|------|
+| `ImportError: cannot import name 'group' from 'torch.distributed'` | v0.4.2+ では起動時に自動パッチ。手動なら `vector_quantize_pytorch/lookup_free_quantization.py` の distributed import を try/except 化 |
 | `uv run` 後に GPU 未検出 / CPU 版 torch に戻る | `pyproject.toml` の `dependencies` に torch が無いか確認。ROCm wheel を `uv pip install` し直す |
 | ヘッダーが `CPU（GPU未検出）` | GPU 版 PyTorch が入っているか確認。`uv run lmt-phase4 gpu-diag` |
 | モデル DL が失敗する | ネットワーク・ディスク容量を確認。`HF_TOKEN` が必要な場合は `.env` に設定 |

@@ -53,7 +53,9 @@ def _should_offload(device_info: DeviceInfo, model_key: str) -> bool:
         return True
     if vram_warning_for_model(device_info, spec.vram_min_gb):
         return True
-    return device_info.vram_gb < spec.vram_recommended_gb
+    # At exactly recommended VRAM the full model fills the GPU and leaves no
+    # headroom for diffusion activations — ACE-Step skips preflight when offload=True.
+    return device_info.vram_gb <= spec.vram_recommended_gb
 
 
 class AceStepBackend:

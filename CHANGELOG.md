@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DiffRhythm, YuE, HeartMuLa inference backends
 - One-click launch scripts (PHASE 5)
 
+## [0.4.2] - 2026-06-07
+
+### Added
+- `app/core/patches.py` — auto-patch `vector_quantize_pytorch` distributed import for ROCm Windows
+- Offload heuristic: enable CPU offload when VRAM equals model `vram_recommended_gb` (20GB XL fix)
+
+### Fixed
+- ROCm Windows: `ImportError: cannot import name 'group' from 'torch.distributed'`
+- XL generation on 20GB GPUs: VRAM preflight failure after full GPU model load
+
 ## [0.4.1] - 2026-06-07
 
 ### Fixed
@@ -83,7 +93,8 @@ First public pre-release. UI, prompt pipeline, and model download are functional
 - Generate button returns placeholder audio until v0.4.0 inference backend
 - Default `uv sync` installs CPU PyTorch; install GPU build separately for ROCm/CUDA
 
-[Unreleased]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune/compare/v0.3.1...v0.3.2

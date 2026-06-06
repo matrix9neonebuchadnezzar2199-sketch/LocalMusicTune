@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from app.core.patches import apply_rocm_windows_patches
+
+apply_rocm_windows_patches()
+
 from app.config import ensure_dirs
 from app.core.device import detect_device
 from app.ui import launch
