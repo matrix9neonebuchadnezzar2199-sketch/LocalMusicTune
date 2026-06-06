@@ -11,9 +11,9 @@ build/
 # Environment
 .env
 
-# Models and generated outputs (never commit)
-models/
-outputs/
+# Models and generated outputs (never commit) — root only
+/models/
+/outputs/
 
 # IDE
 .idea/

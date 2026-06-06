@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-from app.config import DEFAULT_HOST, DEFAULT_PORT, ensure_dirs
+from app.config import ensure_dirs
+from app.core.device import detect_device
+from app.ui import launch
 
 
 def main() -> None:
     ensure_dirs()
-    # UI wiring added in PHASE 1+
-    from app.config import MODELS_DIR, OUTPUTS_DIR
-
-    print("LocalMusicTune scaffold ready (PHASE 0).")
-    print(f"  models:  {MODELS_DIR}")
-    print(f"  outputs: {OUTPUTS_DIR}")
-    print(f"  Run PHASE 1+ to start Gradio UI on {DEFAULT_HOST}:{DEFAULT_PORT}")
+    device = detect_device()
+    print(f"LocalMusicTune — {device.display_label} ({device.mode_label})")
+    launch(device_info=device)
 
 
 if __name__ == "__main__":
