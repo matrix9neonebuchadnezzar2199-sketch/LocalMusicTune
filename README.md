@@ -167,6 +167,17 @@ uv run localmusictune
 
 > **ace-step 未インストール時**はエラーになります。[ACE-Step セットアップ](#4-acestep-15-推論エンジンphase-4-必須) を先に完了してください。
 
+### 生成時間の目安（RX 7900 XT / XL / ROCm 実測）
+
+| 状態 | 条件 | 目安 |
+|------|------|------|
+| **MIOpen 温まった後** | XL・10秒・20ステップ・offload | **約 1〜1.5 分**（diffusion ~74s 実測あり） |
+| **venv 再構築直後（初回）** | 同上 | **約 3〜4 分**（~9.6 s/step — カーネルコンパイル込み） |
+
+2 回目以降は大幅に短縮されます。UI の進捗案内もこの前提です。
+
+> **任意（PHASE 5）:** `pytorch_wavelets` / `PyWavelets` 未導入時は DCW 品質補正が no-op になります。推論は動きますが、音質詰め段階で `uv pip install pytorch_wavelets PyWavelets` を検討（**インストール後 torch 版を確認**）。
+
 ### PHASE 4 検証 CLI（Radeon 実機推奨）
 
 ```powershell
