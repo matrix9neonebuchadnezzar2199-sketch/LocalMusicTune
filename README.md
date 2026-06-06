@@ -1,6 +1,8 @@
 # LocalMusicTune
 
-Windows 11 上で動作するローカル音楽生成ツール。Gradio Web UI からプロンプト・プリセット・楽器・BPM を指定して音楽を生成します。推論エンジンは [ACE-Step 1.5](https://github.com/ace-step/ACE-Step)（MIT）を採用予定です。
+Windows 11 上で動作するローカル音楽生成ツール。Gradio Web UI からプロンプト・プリセット・楽器・BPM を指定して音楽を生成します。推論エンジンは [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5)（MIT）を採用予定です。
+
+**リポジトリ:** https://github.com/matrix9neonebuchadnezzar2199-sketch/LocalMusicTune
 
 ## 対応 GPU
 
