@@ -171,6 +171,7 @@ uv run localmusictune
 
 | 状態 | 条件 | dtype | 目安 |
 |------|------|-------|------|
+| **bfloat16（推奨）** | 30秒・60ステップ・offload（UI 実機） | bfloat16 | **約 16 秒**（diffusion ~11s） |
 | **bfloat16（推奨）** | 20秒・30ステップ・offload | bfloat16 | **約 15 秒**（diffusion ~4s、~0.13 s/it） |
 | **MIOpen 温まった後** | 10秒・20ステップ・offload | float32 | **約 1〜1.5 分**（diffusion ~74s 実測あり） |
 | **venv 再構築直後（初回）** | 10秒・20ステップ・offload | float32 | **約 3〜4 分**（~9.6 s/step — カーネルコンパイル込み） |
