@@ -171,12 +171,23 @@ uv run localmusictune
 
 | 状態 | 条件 | dtype | 目安 |
 |------|------|-------|------|
-| **bfloat16（推奨）** | 30秒・60ステップ・offload（UI 実機） | bfloat16 | **約 16 秒**（diffusion ~11s） |
-| **bfloat16（推奨）** | 20秒・30ステップ・offload | bfloat16 | **約 15 秒**（diffusion ~4s、~0.13 s/it） |
+| **bfloat16（高速）** | 30秒・30ステップ・offload | bfloat16 | **約 15 秒**（音質 OK） |
+| **bfloat16 — 注意** | 30秒・**60ステップ**・offload | bfloat16 | 速いが **無音/ノイズ**（latent 崩壊）→ float32 かステップ≤30 |
+| **bfloat16（高速）** | 20秒・30ステップ・offload | bfloat16 | **約 15 秒**（diffusion ~4s、~0.13 s/it） |
 | **MIOpen 温まった後** | 10秒・20ステップ・offload | float32 | **約 1〜1.5 分**（diffusion ~74s 実測あり） |
 | **venv 再構築直後（初回）** | 10秒・20ステップ・offload | float32 | **約 3〜4 分**（~9.6 s/step — カーネルコンパイル込み） |
 
-`ACESTEP_ROCM_DTYPE=bfloat16`（または `float16`）で VRAM が半減し速度が大幅改善します。ログに `using dtype=torch.bfloat16` と出ていれば有効です。
+`ACESTEP_ROCM_DTYPE=bfloat16` で VRAM が半減し速度が大幅改善します。**ただし ROCm では `float16` は NaN で失敗**し、**bfloat16 は「長尺×多ステップ」（例: 30秒×60step）で音質が崩れる**ことがあります（正規化でノイズ化）。安全策:
+
+```powershell
+# 推奨起動（float32 デフォルト）
+.\scripts\start_rocm.ps1
+
+# 高速（bfloat16）— duration×steps を 1500 以下に（30s×30step など）
+.\scripts\start_rocm.ps1 -Fast
+```
+
+手動: `$env:ACESTEP_ROCM_DTYPE='float32'`（品質優先）または `'bfloat16'`（速度優先・上記制限付き）。
 
 2 回目以降は MIOpen 温まった状態でさらに安定します。UI の進捗案内もこの前提です。
 
@@ -299,7 +310,8 @@ uv run pytest
 | `uv sync` が失敗する | Python 3.10+ と uv の最新版を確認 |
 | 生成ボタンが「ace-step 未インストール」 | README § ACE-Step セットアップを実施 |
 | `lmt-phase4 gpu-diag` が FAIL | GPU 版 PyTorch / ROCm ドライバを確認。Windows ネイティブ ROCm 推奨 |
-| UI 生成が 600 秒で `TimeoutError` | 曲が長い×ステップ多い（例 120s×60step）。**10〜30秒・20〜30ステップ**で試す。長尺は `ACESTEP_GENERATION_TIMEOUT=1800` と `ACESTEP_ROCM_DTYPE=float16`（PHASE 5） |
+| 生成は完了するが **無音・ノイズのみ** | ログの `Peak BEFORE` が **0.01 未満** → bfloat16 で latent 崩壊。**30s×60step** 等。`ACESTEP_ROCM_DTYPE=float32` または **ステップ 30 以下**（UI デフォルト 30/30）。`float16` は ROCm で NaN |
+| UI 生成が 600 秒で `TimeoutError` | 曲が長い×ステップ多い（例 120s×60step）。**10〜30秒・20〜30ステップ**で試す。長尺は `ACESTEP_GENERATION_TIMEOUT=1800` と `ACESTEP_ROCM_DTYPE=float32` |
 
 ---
 

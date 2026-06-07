@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from app.core.audio_quality import validate_generated_audio
 from app.core.device import DeviceInfo, vram_warning_for_model
 from app.models.ace_step_config import (
     DEFAULT_INFERENCE_STEPS,
@@ -209,6 +210,10 @@ class AceStepBackend:
         out = Path(path_str)
         if not out.is_file():
             return GenerateResult(ok=False, error=f"Output file missing: {out}")
+
+        ok_audio, audio_err = validate_generated_audio(out)
+        if not ok_audio:
+            return GenerateResult(ok=False, error=audio_err, output_path=out)
 
         return GenerateResult(
             ok=True,

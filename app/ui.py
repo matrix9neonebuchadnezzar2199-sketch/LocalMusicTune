@@ -16,6 +16,7 @@ from app.core.prompt_builder import build_generation_params, format_params_previ
 from app.models.ace_step_config import DEFAULT_INFERENCE_STEPS
 from app.models.backends.capabilities import is_backend_ready
 from app.models.manager import DownloadState, get_manager
+from app.core.rocm_runtime import format_rocm_dtype_hint, rocm_bfloat16_quality_risk
 from app.models.registry import (
     default_model_key,
     format_duration_limit,
@@ -286,21 +287,24 @@ def _update_preview(
     return format_params_preview(params)
 
 
-def _apply_preset_defaults(preset: str) -> tuple[list[str], float, float, float, str]:
+def _apply_preset_defaults(
+    preset: str,
+    duration: float,
+    steps: float,
+) -> tuple[list[str], float, str]:
+    """Apply preset instruments/BPM only — keep duration/steps sliders unchanged."""
     p = PRESET_BY_LABEL[preset]
     params = build_generation_params(
         "",
         preset,
         list(p.default_instruments),
         p.default_bpm,
-        p.default_duration_sec,
-        p.default_steps,
+        duration,
+        steps,
     )
     return (
         list(p.default_instruments),
         float(p.default_bpm),
-        float(p.default_duration_sec),
-        float(p.default_steps),
         format_params_preview(params),
     )
 
@@ -339,6 +343,12 @@ def _run_generate_stream(
         return
 
     params = build_generation_params(prompt, preset, instruments, bpm, duration, steps)
+
+    risky, risk_msg = rocm_bfloat16_quality_risk(device_info, int(duration), int(steps))
+    if risky:
+        yield f"⚠️ {risk_msg}", None, 0.0, btn_idle
+        return
+
     vram_warn = gen.vram_warning(model_key)
     updates: queue.Queue = queue.Queue()
 
@@ -397,6 +407,9 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
     init_duration_val = min(float(UI_DEFAULT_DURATION_SEC), init_duration_max)
     init_steps_val = min(float(UI_DEFAULT_STEPS), 120 if "turbo" not in init_spec.key else 20)
 
+    rocm_hint = format_rocm_dtype_hint(device_info)
+    rocm_line = f"<br/>{rocm_hint}" if rocm_hint else ""
+
     with gr.Blocks(title="ローカル音楽生成ツール") as demo:
         gr.HTML(
             f"""
@@ -405,7 +418,7 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
               <span class="lmt-badge">PHASE 4-4</span>
               <div class="lmt-gpu-info">
                 検出GPU: <b style="color:#6ee7a0;">{device_info.display_label}</b>
-                ／ 起動モード: {device_info.mode_label}
+                ／ 起動モード: {device_info.mode_label}{rocm_line}
               </div>
             </div>
             """
@@ -574,8 +587,8 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
 
         preset.change(
             _apply_preset_defaults,
-            inputs=preset,
-            outputs=[instruments, bpm, duration, steps, prompt_preview],
+            inputs=[preset, duration, steps],
+            outputs=[instruments, bpm, prompt_preview],
         )
 
         def _run_generate_ui(

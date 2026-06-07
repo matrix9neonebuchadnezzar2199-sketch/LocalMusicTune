@@ -9,6 +9,10 @@ from app.core.patches import apply_rocm_windows_patches
 
 apply_rocm_windows_patches()
 
+from app.core.rocm_runtime import apply_rocm_runtime_defaults
+
+apply_rocm_runtime_defaults()
+
 from app.core.device import detect_device
 from app.core.generator import MusicGenerator, generate_music_file
 from app.core.gpu_diag import format_gpu_diag_report, run_gpu_diagnostics
