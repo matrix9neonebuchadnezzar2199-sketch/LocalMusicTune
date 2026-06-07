@@ -9,7 +9,7 @@ from typing import Any
 
 import gradio as gr
 
-from app.config import DEFAULT_HOST, DEFAULT_PORT
+from app.config import DEFAULT_HOST, DEFAULT_PORT, UI_DEFAULT_DURATION_SEC, UI_DEFAULT_STEPS
 from app.core.device import DeviceInfo, detect_device, vram_warning_for_model
 from app.core.generator import MusicGenerator
 from app.core.prompt_builder import build_generation_params, format_params_preview
@@ -394,7 +394,8 @@ def _run_generate_stream(
 def build_ui(device_info: DeviceInfo) -> gr.Blocks:
     init_spec = get_model(default_model_key())
     init_duration_max = init_spec.max_duration_sec
-    init_duration_val = min(DEFAULT_PRESET_OBJ.default_duration_sec, init_duration_max)
+    init_duration_val = min(float(UI_DEFAULT_DURATION_SEC), init_duration_max)
+    init_steps_val = min(float(UI_DEFAULT_STEPS), 120 if "turbo" not in init_spec.key else 20)
 
     with gr.Blocks(title="ローカル音楽生成ツール") as demo:
         gr.HTML(
@@ -488,8 +489,8 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                             DEFAULT_PRESET,
                             list(DEFAULT_PRESET_OBJ.default_instruments),
                             DEFAULT_PRESET_OBJ.default_bpm,
-                            DEFAULT_PRESET_OBJ.default_duration_sec,
-                            DEFAULT_PRESET_OBJ.default_steps,
+                            init_duration_val,
+                            init_steps_val,
                         ),
                     )
 
@@ -513,8 +514,18 @@ def build_ui(device_info: DeviceInfo) -> gr.Blocks:
                         label=f"曲の長さ（秒）— 最大 {format_duration_limit(init_duration_max)}",
                     )
                     steps = gr.Slider(
-                        10, 120, value=DEFAULT_PRESET_OBJ.default_steps, step=1, label="生成ステップ数（品質）"
+                        10,
+                        120,
+                        value=init_steps_val,
+                        step=1,
+                        label="生成ステップ数（品質）— 初回は 20〜30 推奨",
                     )
+
+                gr.Markdown(
+                    "💡 **初回のおすすめ:** 曲の長さ **10〜30秒**・ステップ **20〜30**。"
+                    " 120秒×60ステップは RX 7900 XT でも **10分以上**かかり、"
+                    "ACE-Step の 600 秒タイムアウトに当たる場合があります。"
+                )
 
                 gen_btn = gr.Button("🎶 音楽を生成", variant="primary")
 

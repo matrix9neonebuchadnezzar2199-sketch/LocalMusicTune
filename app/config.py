@@ -16,9 +16,9 @@ OUTPUTS_DIR = Path(os.getenv("LMT_OUTPUTS_DIR", PROJECT_ROOT / "outputs"))
 DEFAULT_PORT = int(os.getenv("LMT_PORT", "7860"))
 DEFAULT_HOST = os.getenv("LMT_HOST", "127.0.0.1")
 
-# Audio defaults
-DEFAULT_SAMPLE_RATE = 44100
-DEFAULT_CHANNELS = 2
+# UI generation defaults (first paint — not preset values; avoids 120s/60step on first click)
+UI_DEFAULT_DURATION_SEC = int(os.getenv("LMT_UI_DURATION_SEC", "30"))
+UI_DEFAULT_STEPS = int(os.getenv("LMT_UI_STEPS", "30"))
 
 
 def ensure_dirs() -> None:

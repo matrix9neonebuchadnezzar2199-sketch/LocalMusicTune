@@ -295,6 +295,7 @@ uv run pytest
 | `uv sync` が失敗する | Python 3.10+ と uv の最新版を確認 |
 | 生成ボタンが「ace-step 未インストール」 | README § ACE-Step セットアップを実施 |
 | `lmt-phase4 gpu-diag` が FAIL | GPU 版 PyTorch / ROCm ドライバを確認。Windows ネイティブ ROCm 推奨 |
+| UI 生成が 600 秒で `TimeoutError` | 曲が長い×ステップ多い（例 120s×60step）。**10〜30秒・20〜30ステップ**で試す。長尺は `ACESTEP_GENERATION_TIMEOUT=1800` と `ACESTEP_ROCM_DTYPE=float16`（PHASE 5） |
 
 ---
 
